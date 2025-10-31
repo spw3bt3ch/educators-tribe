@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Advertisement - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Submit Advertisement Request</h2>
+        <p class="text-gray-600 mb-8">Fill out the form below to submit your advertisement. Our admin will review and approve it after payment confirmation.</p>
+        
+        <form action="{{ url_for('submit_advert') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Advert Title *</label>
+                <input type="text" id="title" name="title" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="Enter your advertisement title">
+            </div>
+            
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea id="description" name="description" rows="4"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="Describe your advertisement"></textarea>
+            </div>
+            
+            <div>
+                <label for="image_file" class="block text-sm font-medium text-gray-700 mb-2">Advert Image</label>
+                <input type="file" id="image_file" name="image_file" accept="image/png,image/jpg,image/jpeg,image/gif,image/webp"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       onchange="previewImage(event)">
+                <p class="text-sm text-gray-500 mt-1">Upload an image file (PNG, JPG, JPEG, GIF, or WEBP) - Max 5MB</p>
+                
+                <!-- Image Preview -->
+                <div id="image-preview" class="mt-4 hidden">
+                    <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg border border-gray-300">
+                </div>
+                
+                <!-- Alternative: Image URL -->
+                <div class="mt-4">
+                    <p class="text-sm text-gray-600 mb-2">Or provide an image URL:</p>
+                    <input type="url" id="image_url" name="image_url"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="https://example.com/image.jpg"
+                           onchange="previewImageFromUrl(event)">
+                </div>
+            </div>
+            
+            <div>
+                <label for="link_url" class="block text-sm font-medium text-gray-700 mb-2">Link URL</label>
+                <input type="url" id="link_url" name="link_url"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="https://example.com">
+                <p class="text-sm text-gray-500 mt-1">URL where users should be directed when they click the button</p>
+            </div>
+            
+            <div>
+                <label for="button_text" class="block text-sm font-medium text-gray-700 mb-2">Button Text</label>
+                <input type="text" id="button_text" name="button_text" value="Learn More"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="Learn More">
+            </div>
+            
+            {% if advert_amount %}
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p class="text-sm text-green-800">
+                    <strong>Advertisement Fee:</strong> ₦{{ "{:,.2f}".format(advert_amount) }}
+                    <br><small>This is the standard fee set by admin for all advertisements.</small>
+                </p>
+            </div>
+            {% endif %}
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p class="text-sm text-yellow-800">
+                    <strong>Note:</strong> After submission, you will be redirected to make payment. 
+                    Your advertisement will be reviewed and approved by admin once payment is confirmed.
+                </p>
+            </div>
+            
+            <div class="flex space-x-4">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+                    Submit Advertisement
+                </button>
+                <a href="{{ url_for('index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function previewImage(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.classList.add('hidden');
+    }
+}
+
+function previewImageFromUrl(event) {
+    const url = event.target.value;
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    
+    if (url) {
+        previewImg.src = url;
+        preview.classList.remove('hidden');
+    } else {
+        preview.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}
+

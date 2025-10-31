@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Blog - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="bg-white min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">Blog Posts</h1>
+                <p class="text-gray-600">Read and share insights from fellow educators</p>
+            </div>
+            {% if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin' %}
+            <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Write New Post
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Blog Posts with Sidebar -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Main Content Area (3 columns) -->
+            <div class="lg:col-span-3">
+                <!-- Blog Posts Grid -->
+                {% if posts %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                    {% for post in posts %}
+                    <article class="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200">
+                        {% if post.image_url %}
+                        <!-- Featured Image -->
+                        <div class="w-full h-48 overflow-hidden">
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}">
+                                <img src="{{ post.image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-2">
+                                    {% if post.author.profile_picture %}
+                                    <img src="{{ post.author.profile_picture }}" alt="{{ post.author.username }}" 
+                                         class="w-10 h-10 rounded-full object-cover border-2 border-green-500">
+                                    {% else %}
+                                    <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                        {{ post.author.username[0].upper() }}
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900">{{ post.author.full_name or post.author.username }}</p>
+                                        <p class="text-xs text-gray-500">
+                                            {% if post.created_at is string %}
+                                                {{ post.created_at[:10] }}
+                                            {% else %}
+                                                {{ post.created_at.strftime('%B %d, %Y') }}
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h2 class="text-xl font-bold text-gray-900 mb-3 hover:text-green-600 transition line-clamp-2">
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
+                            </h2>
+                            
+                            <p class="text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                            
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">
+                                Read More
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if pagination and pagination.pages > 1 %}
+                <div class="flex justify-center items-center space-x-2 mb-8">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('blog', page=pagination.prev_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+                        Previous
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <span class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium">{{ page_num }}</span>
+                            {% else %}
+                            <a href="{{ url_for('blog', page=page_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+                                {{ page_num }}
+                            </a>
+                            {% endif %}
+                        {% else %}
+                        <span class="px-4 py-2 text-gray-500">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('blog', page=pagination.next_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="bg-white rounded-lg shadow-md p-12 text-center border border-gray-200">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No Blog Posts Yet</h3>
+                    <p class="text-gray-600 mb-6">Be the first to share your thoughts with the community!</p>
+                    {% if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin' %}
+                    <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Write Your First Post
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('register') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                        Register to Start Writing
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sidebar (1 column) -->
+            <aside class="space-y-6">
+                <!-- Approved Advertisements -->
+                {% if approved_adverts %}
+                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">Featured Advertisements</h3>
+                    <div class="space-y-4">
+                        {% for advert in approved_adverts %}
+                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                            {% if advert.image_url %}
+                            <div class="mb-3">
+                                <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-full h-32 object-cover rounded-lg">
+                            </div>
+                            {% endif %}
+                            <h4 class="font-semibold text-gray-900 mb-2 text-sm">{{ advert.title }}</h4>
+                            {% if advert.description %}
+                            <p class="text-xs text-gray-600 mb-3 line-clamp-2">{{ advert.description }}</p>
+                            {% endif %}
+                            {% if advert.link_url %}
+                            <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                               class="inline-block w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-center text-sm font-semibold transition">
+                                {{ advert.button_text or 'Learn More' }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+</div>
+{% endblock %}

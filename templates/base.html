@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Educators' Tribe{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-green-600 to-green-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('index') }}" class="flex items-center space-x-2">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 01.557 1.14l1.561 4.854a1 1 0 01-.404 1.2l-5 3a1 1 0 01-.784 0l-5-3a1 1 0 01-.404-1.2l1.56-4.854a1 1 0 01.558-1.14l1.94-.83-.624-1.624a1 1 0 01-.356-.257L2.606 6.08a1 1 0 010-1.84l7-3z"></path>
+                        </svg>
+                        <span class="text-white text-xl font-bold">Educators' Tribe</span>
+                    </a>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Home</a>
+                    <a href="{{ url_for('news') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">News</a>
+                    <a href="{{ url_for('blog') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Blog</a>
+                    <a href="{{ url_for('contact') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Contact</a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.__class__.__name__ == 'Admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Admin Dashboard</a>
+                            <a href="{{ url_for('admin_adverts') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Adverts</a>
+                        {% else %}
+                            <a href="{{ url_for('create_post') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Write Post</a>
+                            <a href="{{ url_for('profile') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Profile</a>
+                            <a href="{{ url_for('submit_advert') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Submit Ad</a>
+                            <a href="{{ url_for('my_adverts') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">My Adverts</a>
+                        {% endif %}
+                        <a href="{{ url_for('logout') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Login</a>
+                        <a href="{{ url_for('register') }}" class="bg-white text-green-600 hover:bg-green-50 px-4 py-2 rounded-md text-sm font-medium transition">Register</a>
+                    {% endif %}
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-white hover:text-green-200 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="hidden md:hidden pb-4">
+                <a href="{{ url_for('index') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Home</a>
+                <a href="{{ url_for('news') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">News</a>
+                <a href="{{ url_for('blog') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Blog</a>
+                <a href="{{ url_for('contact') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Contact</a>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.__class__.__name__ == 'Admin' %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Admin Dashboard</a>
+                        <a href="{{ url_for('admin_adverts') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Adverts</a>
+                    {% else %}
+                        <a href="{{ url_for('create_post') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Write Post</a>
+                        <a href="{{ url_for('profile') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Profile</a>
+                        <a href="{{ url_for('submit_advert') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Submit Ad</a>
+                        <a href="{{ url_for('my_adverts') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">My Adverts</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="block bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-base font-medium mt-2">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="block text-white hover:text-green-200 px-3 py-2 rounded-md text-base font-medium">Login</a>
+                        <a href="{{ url_for('register') }}" class="block bg-white text-green-600 hover:bg-green-50 px-3 py-2 rounded-md text-base font-medium mt-2">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} bg-{{ 'green' if category == 'success' else 'red' if category == 'danger' else 'green' }}-100 border border-{{ 'green' if category == 'success' else 'red' if category == 'danger' else 'green' }}-400 text-{{ 'green' if category == 'success' else 'red' if category == 'danger' else 'green' }}-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                        <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                            <svg class="fill-current h-6 w-6 text-{{ 'green' if category == 'success' else 'red' if category == 'danger' else 'green' }}-500" role="button" onclick="this.parentElement.parentElement.remove()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                            </svg>
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">About Us</h3>
+                    <p class="text-gray-300">A platform for Nigerian teachers to share knowledge, stay updated with education news, and connect with the teaching community.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="{{ url_for('index') }}" class="hover:text-white transition">Home</a></li>
+                        <li><a href="{{ url_for('news') }}" class="hover:text-white transition">Education News</a></li>
+                        {% if not current_user.is_authenticated %}
+                            <li><a href="{{ url_for('register') }}" class="hover:text-white transition">Register</a></li>
+                            <li><a href="{{ url_for('login') }}" class="hover:text-white transition">Login</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Contact</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="{{ url_for('contact') }}" class="hover:text-white transition">Contact Support</a></li>
+                        <li><a href="mailto:ttribetechsupport@gmail.com" class="hover:text-white transition">ttribetechsupport@gmail.com</a></li>
+                        <li><a href="tel:07077705842" class="hover:text-white transition">07077705842</a></li>
+                        <li><a href="https://wa.me/2347077705842" target="_blank" rel="noopener noreferrer" class="hover:text-white transition">WhatsApp: 07077705842</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
+                <p>&copy; 2025 Educators' Tribe. All rights reserved.</p>
+                <p class="mt-2 text-sm">Developed by SMI Solutions</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button')?.addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+
+        // Initialize Socket.IO
+        const socket = io();
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

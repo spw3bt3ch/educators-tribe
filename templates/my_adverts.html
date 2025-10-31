@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}My Advertisements - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">My Advertisements</h1>
+            <p class="text-gray-600">View and manage your submitted advertisements</p>
+        </div>
+        <a href="{{ url_for('submit_advert') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+            Submit New Ad
+        </a>
+    </div>
+    
+    {% if adverts %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for advert in adverts %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            {% if advert.image_url %}
+            <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-full h-48 object-cover">
+            {% endif %}
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xl font-bold text-gray-900">{{ advert.title }}</h3>
+                    {% if advert.status == 'pending' %}
+                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                    {% elif advert.status == 'approved' %}
+                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>
+                    {% elif advert.status == 'rejected' %}
+                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
+                    {% endif %}
+                </div>
+                
+                {% if advert.description %}
+                <p class="text-gray-600 mb-4 line-clamp-3">{{ advert.description }}</p>
+                {% endif %}
+                
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <p><strong>Payment Status:</strong> 
+                        {% if advert.payment_status == 'paid' %}
+                        <span class="text-green-600">Paid</span>
+                        {% elif advert.payment_status == 'pending' %}
+                        <span class="text-yellow-600">Pending</span>
+                        {% else %}
+                        <span class="text-red-600">Unpaid</span>
+                        {% endif %}
+                    </p>
+                    {% if advert.amount %}
+                    <p><strong>Amount:</strong> ₦{{ "%.2f"|format(advert.amount) }}</p>
+                    {% endif %}
+                    <p><strong>Submitted:</strong> 
+                        {% if advert.submitted_at is string %}
+                            {{ advert.submitted_at[:10] }}
+                        {% else %}
+                            {{ advert.submitted_at.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </p>
+                    {% if advert.approved_at %}
+                    <p><strong>Approved:</strong> 
+                        {% if advert.approved_at is string %}
+                            {{ advert.approved_at[:10] }}
+                        {% else %}
+                            {{ advert.approved_at.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                
+                {% if advert.admin_notes %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                    <p class="text-sm text-gray-700"><strong>Admin Notes:</strong> {{ advert.admin_notes }}</p>
+                </div>
+                {% endif %}
+                
+                {% if advert.link_url and advert.status == 'approved' %}
+                <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                   class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition">
+                    {{ advert.button_text or 'Visit Link' }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No Advertisements Yet</h3>
+        <p class="text-gray-600 mb-6">You haven't submitted any advertisements yet.</p>
+        <a href="{{ url_for('submit_advert') }}" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+            Submit Your First Ad
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

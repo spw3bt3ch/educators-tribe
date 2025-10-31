@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+                <p class="text-gray-600">Manage your profile information and picture</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Profile Picture Section -->
+                <div class="md:col-span-1">
+                    <div class="text-center">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Picture</h2>
+                        
+                        <!-- Current Profile Picture -->
+                        <div class="mb-6">
+                            {% if user.profile_picture %}
+                            <img src="{{ user.profile_picture }}" alt="{{ user.username }}" 
+                                 class="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-500 shadow-lg">
+                            {% else %}
+                            <div class="w-32 h-32 rounded-full mx-auto bg-green-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-green-500 shadow-lg">
+                                {{ user.username[0].upper() }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Upload Form -->
+                        <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" class="space-y-4">
+                            <!-- File Upload -->
+                            <div>
+                                <label for="profile_picture" class="block text-sm text-gray-600 mb-2">Upload Picture</label>
+                                <input type="file" 
+                                       id="profile_picture" 
+                                       name="profile_picture" 
+                                       accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-sm">
+                            </div>
+
+                            <!-- OR Divider -->
+                            <div class="flex items-center my-2">
+                                <div class="flex-1 border-t border-gray-300"></div>
+                                <span class="px-4 text-xs text-gray-500">OR</span>
+                                <div class="flex-1 border-t border-gray-300"></div>
+                            </div>
+
+                            <!-- Image URL -->
+                            <div>
+                                <label for="profile_picture_url" class="block text-sm text-gray-600 mb-2">Picture URL</label>
+                                <input type="url" 
+                                       id="profile_picture_url" 
+                                       name="profile_picture_url" 
+                                       value="{{ user.profile_picture or '' }}"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-sm"
+                                       placeholder="https://example.com/image.jpg">
+                            </div>
+
+                            <!-- Preview -->
+                            <div id="picture_preview" class="hidden">
+                                <p class="text-xs text-gray-600 mb-2">Preview:</p>
+                                <img id="preview_img" src="" alt="Preview" class="w-24 h-24 rounded-full mx-auto object-cover border-2 border-gray-300">
+                            </div>
+
+                            <!-- Remove Picture -->
+                            {% if user.profile_picture %}
+                            <div class="mt-4">
+                                <button type="submit" name="remove_picture" value="1" 
+                                        class="w-full px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium text-sm transition">
+                                    Remove Picture
+                                </button>
+                            </div>
+                            {% endif %}
+
+                            <!-- Update Button -->
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                                Update Picture
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Profile Information -->
+                <div class="md:col-span-2">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Information</h2>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <p class="text-gray-900">{{ user.username }}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <p class="text-gray-900">{{ user.full_name or 'Not set' }}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <p class="text-gray-900">{{ user.email }}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+                            <p class="text-gray-900">
+                                {% if user.created_at is string %}
+                                    {{ user.created_at[:10] }}
+                                {% else %}
+                                    {{ user.created_at.strftime('%B %d, %Y') }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% if user.last_login %}
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Login</label>
+                            <p class="text-gray-900">
+                                {% if user.last_login is string %}
+                                    {{ user.last_login[:10] }}
+                                {% else %}
+                                    {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Profile picture preview functionality
+document.getElementById('profile_picture').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('preview_img').src = e.target.result;
+            document.getElementById('picture_preview').classList.remove('hidden');
+            // Clear URL input when file is selected
+            document.getElementById('profile_picture_url').value = '';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        document.getElementById('picture_preview').classList.add('hidden');
+    }
+});
+
+document.getElementById('profile_picture_url').addEventListener('input', function(e) {
+    const url = e.target.value;
+    if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        document.getElementById('preview_img').src = url;
+        document.getElementById('picture_preview').classList.remove('hidden');
+        // Clear file input when URL is provided
+        document.getElementById('profile_picture').value = '';
+    } else if (!url) {
+        document.getElementById('picture_preview').classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}
+

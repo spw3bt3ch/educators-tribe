@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Pay for Advertisement - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <div class="mb-6">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">Payment for Advertisement</h2>
+            <p class="text-gray-600">Complete payment for your advertisement submission</p>
+        </div>
+        
+        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ advert.title }}</h3>
+            {% if advert.description %}
+            <p class="text-gray-600 mb-4">{{ advert.description }}</p>
+            {% endif %}
+            <div class="border-t border-gray-200 pt-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700 font-medium">Amount to Pay:</span>
+                    <span class="text-2xl font-bold text-green-600">₦{{ "{:,.2f}".format(advert.amount) }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <form action="{{ url_for('pay_advert', advert_id=advert.id) }}" method="POST">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <p class="text-sm text-green-800">
+                    <strong>Secure Payment:</strong> You will be redirected to Paystack to complete your payment securely.
+                    <br><small>After successful payment, your advertisement will be reviewed and approved by admin.</small>
+                </p>
+            </div>
+            
+            <div class="flex space-x-4">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+                    Proceed to Payment
+                </button>
+                <a href="{{ url_for('my_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

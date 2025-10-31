@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Educators' Tribe{% endblock %}
+
+{% block content %}
+{% if not user %}
+<!-- Hero Section with Background Image (Only for non-logged in users) -->
+<section class="relative min-h-screen text-white overflow-hidden flex items-center">
+    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{ url_for('static', filename='images/african-woman-teaching-children-class.jpg') }}');"></div>
+    <div class="absolute inset-0 bg-gray-800 opacity-80"></div>
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 w-full">
+        <div class="text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-6">Welcome to Educators' Tribe</h1>
+            <p class="text-xl md:text-2xl mb-8 text-green-100">Empowering Nigerian Educators • Igniting Learning Minds • Shaping Tomorrow's Leaders</p>
+            <div class="space-x-4">
+                <a href="{{ url_for('register') }}" class="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-green-50 transition inline-block">Get Started</a>
+                <a href="{{ url_for('news') }}" class="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition inline-block">Read Latest News</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% else %}
+<!-- Blog Header for Logged-in Users -->
+<section class="bg-gradient-to-r from-green-600 to-green-800 text-white py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-3">Welcome back, {{ user.full_name or user.username }}!</h1>
+            <p class="text-xl text-green-100">Stay updated with the latest education news and insights</p>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Adverts Carousel Section -->
+{% if approved_adverts %}
+<section class="py-8 bg-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Featured Advertisements</h2>
+        <div class="relative overflow-hidden">
+            <div id="adverts-carousel" class="flex transition-transform duration-500 ease-in-out">
+                {% for advert in approved_adverts %}
+                <div class="min-w-full flex-shrink-0 px-2">
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div class="flex flex-col md:flex-row items-center p-6">
+                            {% if advert.image_url %}
+                            <div class="w-full md:w-1/3 mb-4 md:mb-0 md:mr-6">
+                                <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-full h-48 object-cover rounded-lg">
+                            </div>
+                            {% endif %}
+                            <div class="flex-1">
+                                <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ advert.title }}</h3>
+                                {% if advert.description %}
+                                <p class="text-gray-600 mb-4">{{ advert.description }}</p>
+                                {% endif %}
+                                {% if advert.link_url %}
+                                <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                                   class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                                    {{ advert.button_text or 'Learn More' }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if approved_adverts|length > 1 %}
+            <button id="prev-advert" class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition z-10">
+                <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+            <button id="next-advert" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition z-10">
+                <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+            {% endif %}
+        </div>
+        <div class="flex justify-center mt-4 space-x-2">
+            {% for i in range(approved_adverts|length) %}
+            <button class="advert-indicator w-2 h-2 rounded-full bg-gray-400 transition {% if i == 0 %}bg-green-600{% endif %}" data-index="{{ i }}"></button>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Features Section -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="text-center p-6 rounded-lg hover:shadow-lg transition">
+                <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Education News</h3>
+                <p class="text-gray-600">Stay updated with the latest education news and updates from across Nigeria.</p>
+            </div>
+            
+            <div class="text-center p-6 rounded-lg hover:shadow-lg transition">
+                <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Community</h3>
+                <p class="text-gray-600">Connect with fellow teachers and share your experiences and knowledge.</p>
+            </div>
+            
+            <div class="text-center p-6 rounded-lg hover:shadow-lg transition">
+                <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Resources</h3>
+                <p class="text-gray-600">Access teaching resources and professional development materials.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Latest News Section -->
+<section class="py-16 {% if user %}bg-white{% else %}bg-gray-50{% endif %}">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-900">{% if user %}Latest Blog Posts{% else %}Latest Education News{% endif %}</h2>
+            {% if user %}
+            <a href="{{ url_for('blog') }}" class="text-green-600 hover:text-green-800 font-semibold">View All Posts →</a>
+            {% else %}
+            <a href="{{ url_for('news') }}" class="text-green-600 hover:text-green-800 font-semibold">View All News →</a>
+            {% endif %}
+        </div>
+        
+        {% if user %}
+        <!-- Blog-style layout for logged-in users -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main content area (2 columns) -->
+            <div class="lg:col-span-2 space-y-6">
+                {% if latest_posts %}
+                    {% for post in latest_posts[:8] %}
+                    <article class="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200">
+                        {% if post.image_url %}
+                        <div class="w-full h-64 overflow-hidden">
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}">
+                                <img src="{{ post.image_url }}" alt="{{ post.title }}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="p-6">
+                            <div class="flex items-center space-x-4 mb-4">
+                                {% if post.author.profile_picture %}
+                                <img src="{{ post.author.profile_picture }}" alt="{{ post.author.username }}" 
+                                     class="w-10 h-10 rounded-full object-cover border-2 border-green-500">
+                                {% else %}
+                                <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    {{ post.author.username[0].upper() }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-900">{{ post.author.full_name or post.author.username }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        {% if post.created_at is string %}
+                                            {{ post.created_at[:10] }}
+                                        {% else %}
+                                            {{ post.created_at.strftime('%B %d, %Y') }}
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2 hover:text-green-600 transition">
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
+                            </h3>
+                            <p class="text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">
+                                Read More
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% else %}
+                <div class="bg-white rounded-lg shadow p-8 text-center border border-gray-200">
+                    <p class="text-gray-600 mb-4">No blog posts available yet.</p>
+                    <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-block">
+                        Write Your First Post
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sidebar (1 column) -->
+            <aside class="space-y-6">
+                <!-- Latest Blog Posts Sidebar -->
+                {% if latest_posts %}
+                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">Recent Blog Posts</h3>
+                        <a href="{{ url_for('blog') }}" class="text-green-600 hover:text-green-800 text-sm font-medium">View All</a>
+                    </div>
+                    <div class="space-y-4">
+                        {% for post in latest_posts[:5] %}
+                        <div class="pb-4 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                            <h4 class="text-sm font-semibold text-gray-900 mb-1 hover:text-green-600 transition">
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
+                            </h4>
+                            <p class="text-xs text-gray-500 mb-2">
+                                By {{ post.author.full_name or post.author.username }} • 
+                                {% if post.created_at is string %}
+                                    {{ post.created_at[:10] }}
+                                {% else %}
+                                    {{ post.created_at.strftime('%b %d, %Y') }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
+                    <div class="space-y-3">
+                        <a href="{{ url_for('create_post') }}" class="block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-center font-semibold transition">Write Post</a>
+                        <a href="{{ url_for('blog') }}" class="block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-center font-semibold transition">View All Posts</a>
+                        <a href="{{ url_for('profile') }}" class="block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-center font-semibold transition">My Profile</a>
+                        <a href="{{ url_for('submit_advert') }}" class="block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-center font-semibold transition">Submit Advertisement</a>
+                        <a href="{{ url_for('my_adverts') }}" class="block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-center font-semibold transition">My Advertisements</a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+        {% else %}
+        <!-- Grid layout for non-logged in users -->
+        {% if news_articles %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for article in news_articles[:6] %}
+            <div class="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden">
+                {% if article.image_url %}
+                <img src="{{ article.image_url }}" alt="{{ article.title }}" class="w-full h-48 object-cover">
+                {% endif %}
+                <div class="p-6">
+                    <div class="flex items-center mb-2">
+                        <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">{{ article.category }}</span>
+                        <span class="ml-auto text-xs text-gray-500">
+                            {% if article.fetched_at is string %}
+                                {{ article.fetched_at[:10] }}
+                            {% else %}
+                                {{ article.fetched_at.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{{ article.title }}</h3>
+                    {% if article.source_url %}
+                    <a href="{{ article.source_url }}" target="_blank" class="text-green-600 hover:text-green-800 text-sm font-medium inline-flex items-center">
+                        Read More
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white rounded-lg shadow p-8 text-center">
+            <p class="text-gray-600">No news articles available at the moment. News updates are fetched automatically.</p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+</section>
+
+<!-- Latest Blog Posts Section (Only for non-logged in users) -->
+{% if latest_posts and not user %}
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-900">Latest Blog Posts</h2>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for post in latest_posts %}
+            <div class="bg-gray-50 rounded-lg shadow-md hover:shadow-xl transition overflow-hidden">
+                <div class="p-6">
+                    <div class="flex items-center mb-2">
+                        <span class="text-xs text-gray-500">
+                            {% if post.created_at is string %}
+                                {{ post.created_at[:10] }}
+                            {% else %}
+                                {{ post.created_at.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </span>
+                        {% if post.views %}
+                        <span class="ml-auto text-xs text-gray-500">{{ post.views }} views</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ post.title }}</h3>
+                    <p class="text-gray-600 text-sm mb-3 line-clamp-3">{{ post.content[:150] }}...</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">By {{ post.author.username if post.author else 'Unknown' }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Call to Action Section -->
+{% if not user %}
+<section class="py-16 bg-gradient-to-r from-green-600 to-green-800 text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="text-3xl font-bold mb-4">Join Our Community</h2>
+        <p class="text-xl mb-8 text-green-100">Register now to access exclusive content and connect with fellow teachers.</p>
+        <a href="{{ url_for('register') }}" class="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-green-50 transition inline-block">Register Now</a>
+    </div>
+</section>
+{% endif %}
+
+<script>
+// Advert Carousel Functionality
+{% if approved_adverts and approved_adverts|length > 1 %}
+let currentAdvertIndex = 0;
+const adverts = document.querySelectorAll('#adverts-carousel > div');
+const totalAdverts = adverts.length;
+
+function showAdvert(index) {
+    const carousel = document.getElementById('adverts-carousel');
+    carousel.style.transform = `translateX(-${index * 100}%)`;
+    
+    // Update indicators
+    document.querySelectorAll('.advert-indicator').forEach((ind, i) => {
+        ind.classList.toggle('bg-green-600', i === index);
+        ind.classList.toggle('bg-gray-400', i !== index);
+    });
+}
+
+document.getElementById('next-advert')?.addEventListener('click', () => {
+    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+});
+
+document.getElementById('prev-advert')?.addEventListener('click', () => {
+    currentAdvertIndex = (currentAdvertIndex - 1 + totalAdverts) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+});
+
+// Auto-rotate carousel
+setInterval(() => {
+    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+}, 5000); // Change every 5 seconds
+
+// Indicator click handlers
+document.querySelectorAll('.advert-indicator').forEach((ind, index) => {
+    ind.addEventListener('click', () => {
+        currentAdvertIndex = index;
+        showAdvert(currentAdvertIndex);
+    });
+});
+{% endif %}
+</script>
+{% endblock %}
