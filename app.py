@@ -22,7 +22,12 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+# Configure Flask with explicit static folder for Vercel deployment
+# Get the directory where app.py is located
+app_dir = os.path.dirname(os.path.abspath(__file__))
+static_folder = os.path.join(app_dir, 'static')
+
+app = Flask(__name__, static_folder=static_folder)
 # Generate a random secret key if not set in environment (development only)
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
