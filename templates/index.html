@@ -35,23 +35,23 @@
 <!-- Adverts Carousel Section -->
 {% if approved_adverts %}
 <section class="py-8 bg-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Featured Advertisements</h2>
         <div class="relative overflow-hidden">
             <div id="adverts-carousel" class="flex transition-transform duration-500 ease-in-out">
                 {% for advert in approved_adverts %}
                 <div class="min-w-full flex-shrink-0 px-2">
                     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                        <div class="flex flex-col md:flex-row items-start md:items-center p-6">
+                        <div class="flex flex-col md:flex-row items-start md:items-center p-8 min-h-[200px]">
                             {% if advert.image_url %}
                             <div class="flex-shrink-0 mb-4 md:mb-0 md:mr-6">
                                 <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-32 h-32 md:w-40 md:h-40 object-cover rounded-lg border-2 border-gray-200">
                             </div>
                             {% endif %}
                             <div class="flex-1 min-w-0">
-                                <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-2">{{ advert.title }}</h3>
+                                <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-3">{{ advert.title }}</h3>
                                 {% if advert.description %}
-                                <p class="text-gray-600 mb-4 text-sm md:text-base">{{ advert.description }}</p>
+                                <p class="text-gray-600 mb-4 text-sm md:text-base leading-relaxed">{{ advert.description }}</p>
                                 {% endif %}
                                 {% if advert.link_url %}
                                 <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
