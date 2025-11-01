@@ -76,6 +76,9 @@
         <a href="{{ url_for('admin_adverts') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
             Manage Adverts{% if pending_adverts %} <span class="bg-red-500 rounded-full px-2 py-1 text-xs">({{ pending_adverts }})</span>{% endif %}
         </a>
+        <a href="{{ url_for('admin_advert_pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+            Set Advert Pricing
+        </a>
         <button onclick="fetchNews()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
             Fetch Latest News
         </button>
