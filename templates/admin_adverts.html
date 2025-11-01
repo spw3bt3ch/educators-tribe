@@ -77,14 +77,39 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="showAdvertDetails('{{ advert.id }}')" 
-                                    class="text-green-600 hover:text-green-900 mr-3">View</button>
-                            {% if advert.status == 'pending' %}
-                            <button onclick="showApproveModal('{{ advert.id }}')" 
-                                    class="text-green-600 hover:text-green-900 mr-3">Approve</button>
-                            <button onclick="showRejectModal('{{ advert.id }}')" 
-                                    class="text-red-600 hover:text-red-900">Reject</button>
-                            {% endif %}
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="showAdvertDetails('{{ advert.id }}')" 
+                                        class="text-blue-600 hover:text-blue-900 hover:underline px-2 py-1">
+                                    View
+                                </button>
+                                {% if advert.status == 'pending' %}
+                                <button onclick="showApproveModal('{{ advert.id }}')" 
+                                        class="text-green-600 hover:text-green-900 hover:underline px-2 py-1">
+                                    Approve
+                                </button>
+                                <button onclick="showRejectModal('{{ advert.id }}')" 
+                                        class="text-red-600 hover:text-red-900 hover:underline px-2 py-1">
+                                    Reject
+                                </button>
+                                {% endif %}
+                                {% if advert.status == 'approved' %}
+                                <form action="{{ url_for('deactivate_advert', advert_id=advert.id) }}" method="POST" class="inline-block" 
+                                      onsubmit="return confirm('Are you sure you want to deactivate this advert?');">
+                                    <button type="submit" 
+                                            class="text-orange-600 hover:text-orange-900 hover:underline px-2 py-1">
+                                        Deactivate
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <span class="text-gray-300 select-none">|</span>
+                                <form action="{{ url_for('delete_advert', advert_id=advert.id) }}" method="POST" class="inline-block" 
+                                      onsubmit="return confirm('⚠️ WARNING: Are you sure you want to DELETE this advert?\n\nThis will PERMANENTLY delete:\n• The advertisement\n• All related data\n\nThis action CANNOT be undone!');">
+                                    <button type="submit" 
+                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded transition shadow-sm hover:shadow text-xs">
+                                        🗑️ Delete
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
