@@ -66,16 +66,26 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <form action="{{ url_for('toggle_user_status', user_id=user.id) }}" method="POST" class="inline">
-                                <button type="submit" 
-                                        class="{% if user.is_active %}text-red-600 hover:text-red-900{% else %}text-green-600 hover:text-green-900{% endif %} transition">
-                                    {% if user.is_active %}
-                                        Deactivate
-                                    {% else %}
-                                        Activate
-                                    {% endif %}
-                                </button>
-                            </form>
+                            <div class="flex items-center gap-3">
+                                <form action="{{ url_for('toggle_user_status', user_id=user.id) }}" method="POST" class="inline-block">
+                                    <button type="submit" 
+                                            class="{% if user.is_active %}text-red-600 hover:text-red-900 hover:underline{% else %}text-green-600 hover:text-green-900 hover:underline{% endif %} transition px-2 py-1">
+                                        {% if user.is_active %}
+                                            Deactivate
+                                        {% else %}
+                                            Activate
+                                        {% endif %}
+                                    </button>
+                                </form>
+                                <span class="text-gray-300 select-none">|</span>
+                                <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="inline-block" 
+                                      onsubmit="return confirm('⚠️ WARNING: Are you sure you want to DELETE user \"{{ user.username }}\"?\n\nThis will PERMANENTLY delete:\n• The user account\n• All their blog posts\n• All their advertisements\n• All their activities\n• All related data\n\nThis action CANNOT be undone!');">
+                                    <button type="submit" 
+                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded transition shadow-sm hover:shadow">
+                                        🗑️ Delete
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
