@@ -9,9 +9,14 @@
             <h1 class="text-4xl font-bold text-gray-900 mb-2">Manage Advertisements</h1>
             <p class="text-gray-600">Review and manage user-submitted advertisements</p>
         </div>
-        <a href="{{ url_for('admin_dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-            Back to Dashboard
-        </a>
+        <div class="flex gap-3">
+            <a href="{{ url_for('create_advert') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                ➕ Create Advert (Free)
+            </a>
+            <a href="{{ url_for('admin_dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                Back to Dashboard
+            </a>
+        </div>
     </div>
     
     {% if adverts %}
