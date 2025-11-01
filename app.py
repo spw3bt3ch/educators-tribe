@@ -2278,6 +2278,10 @@ def delete_advert(advert_id):
 @admin_required
 def create_advert():
     """Admin - Create advert for free (automatically approved)"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_adverts'))
+    
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
@@ -2384,8 +2388,17 @@ def create_advert():
             flash('Error creating advert. Please try again.', 'danger')
     
     # GET request - show form
-    users = User.query.filter_by(is_active=True).order_by(User.username).all()
-    return render_template('admin_create_advert.html', users=users)
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_adverts'))
+    
+    try:
+        users = User.query.filter_by(is_active=True).order_by(User.username).all()
+        return render_template('admin_create_advert.html', users=users)
+    except Exception as e:
+        print(f"Error loading create advert form: {e}")
+        flash('Error loading the form. Please try again.', 'danger')
+        return redirect(url_for('admin_adverts'))
 
 @app.route('/admin/post/create', methods=['GET', 'POST'])
 @admin_required
