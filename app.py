@@ -2283,109 +2283,133 @@ def create_advert():
         return redirect(url_for('admin_adverts'))
     
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        link_url = request.form.get('link_url', '').strip()
-        button_text = request.form.get('button_text', 'Learn More').strip()
-        user_id = request.form.get('user_id', type=int)
-        image_url = None
-        
-        # Validation
-        if not title:
-            flash('Title is required.', 'danger')
-            users = User.query.filter_by(is_active=True).order_by(User.username).all()
-            return render_template('admin_create_advert.html', users=users)
-        
-        if not user_id:
-            flash('Please select a user.', 'danger')
-            users = User.query.filter_by(is_active=True).order_by(User.username).all()
-            return render_template('admin_create_advert.html', users=users)
-        
-        # Check if user exists
-        user = User.query.get(user_id)
-        if not user:
-            flash('Selected user not found.', 'danger')
-            users = User.query.filter_by(is_active=True).order_by(User.username).all()
-            return render_template('admin_create_advert.html', users=users)
-        
-        # Handle image upload or URL
-        if 'image_file' in request.files:
-            file = request.files['image_file']
-            if file and file.filename:
-                filename = file.filename
-                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        try:
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            link_url = request.form.get('link_url', '').strip()
+            button_text = request.form.get('button_text', 'Learn More').strip()
+            user_id = request.form.get('user_id', type=int)
+            image_url = None
+            
+            # Validation
+            if not title:
+                flash('Title is required.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
+            
+            if not user_id:
+                flash('Please select a user.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
+            
+            # Check if user exists
+            user = User.query.get(user_id)
+            if not user:
+                flash('Selected user not found.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
+            
+            # Handle image upload or URL
+            if 'image_file' in request.files:
+                file = request.files['image_file']
+                if file and file.filename:
+                    filename = file.filename
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Save uploaded file
+                        upload_folder = os.path.join(app.root_path, 'static', 'images', 'adverts')
+                        os.makedirs(upload_folder, exist_ok=True)
+                        
+                        # Generate unique filename
+                        filename = secure_filename(filename)
+                        filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
+                        filepath = os.path.join(upload_folder, filename)
+                        file.save(filepath)
+                        
+                        # Set image URL to the saved file path
+                        image_url = url_for('static', filename=f'images/adverts/{filename}')
+                    else:
+                        flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
+                        users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                        return render_template('admin_create_advert.html', users=users)
+            
+            # If no file upload, check for image URL
+            if not image_url:
+                image_url_input = request.form.get('image_url', '').strip()
+                if image_url_input:
+                    image_url = image_url_input
+            
+            # Get weeks (default 1)
+            weeks = request.form.get('weeks', type=int) or 1
+            if weeks < 1:
+                weeks = 1
+            elif weeks > 52:
+                weeks = 52
+            
+            try:
+                # Create advert (free, automatically approved and active)
+                advert = Advert(
+                    title=title,
+                    description=description if description else None,
+                    image_url=image_url,
+                    link_url=link_url if link_url else None,
+                    button_text=button_text if button_text else 'Learn More',
+                    submitted_by=user_id,
+                    amount=0.00,  # Free for admin-created adverts
+                    weeks=weeks,
+                    status='active',  # Automatically approved and active
+                    payment_status='paid',  # Free = paid
+                    approved_at=datetime.utcnow(),
+                    start_date=datetime.utcnow(),
+                    end_date=datetime.utcnow() + timedelta(weeks=weeks),
+                    admin_notes='Created by admin (free)'
+                )
                 
-                if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Save uploaded file
-                    upload_folder = os.path.join(app.root_path, 'static', 'images', 'adverts')
-                    os.makedirs(upload_folder, exist_ok=True)
-                    
-                    # Generate unique filename
-                    filename = secure_filename(filename)
-                    filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
-                    filepath = os.path.join(upload_folder, filename)
-                    file.save(filepath)
-                    
-                    # Set image URL to the saved file path
-                    image_url = url_for('static', filename=f'images/adverts/{filename}')
-                else:
-                    flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
+                db.session.add(advert)
+                db.session.commit()
+                
+                # Log activity
+                try:
+                    activity = UserActivity(
+                        user_id=user_id,
+                        action='advert_created_by_admin',
+                        description=f'Admin created advert: {title}'
+                    )
+                    db.session.add(activity)
+                    db.session.commit()
+                except Exception as e:
+                    print(f"Error logging activity: {e}")
+                
+                flash(f'Advert "{title}" created successfully and approved (free)!', 'success')
+                return redirect(url_for('admin_adverts'))
+            except Exception as e:
+                print(f"Error creating advert: {e}")
+                import traceback
+                traceback.print_exc()  # Print full traceback for debugging
+                db.session.rollback()
+                flash('Error creating advert. Please try again.', 'danger')
+                # Return form with error instead of redirecting
+                try:
                     users = User.query.filter_by(is_active=True).order_by(User.username).all()
                     return render_template('admin_create_advert.html', users=users)
-        
-        # If no file upload, check for image URL
-        if not image_url:
-            image_url_input = request.form.get('image_url', '').strip()
-            if image_url_input:
-                image_url = image_url_input
-        
-        # Get weeks (default 1)
-        weeks = request.form.get('weeks', type=int) or 1
-        if weeks < 1:
-            weeks = 1
-        elif weeks > 52:
-            weeks = 52
-        
-        try:
-            # Create advert (free, automatically approved and active)
-            advert = Advert(
-                title=title,
-                description=description if description else None,
-                image_url=image_url,
-                link_url=link_url if link_url else None,
-                button_text=button_text if button_text else 'Learn More',
-                submitted_by=user_id,
-                amount=0.00,  # Free for admin-created adverts
-                weeks=weeks,
-                status='active',  # Automatically approved and active
-                payment_status='paid',  # Free = paid
-                approved_at=datetime.utcnow(),
-                start_date=datetime.utcnow(),
-                end_date=datetime.utcnow() + timedelta(weeks=weeks),
-                admin_notes='Created by admin (free)'
-            )
-            
-            db.session.add(advert)
-            db.session.commit()
-            
-            # Log activity
-            try:
-                activity = UserActivity(
-                    user_id=user_id,
-                    action='advert_created_by_admin',
-                    description=f'Admin created advert: {title}'
-                )
-                db.session.add(activity)
-                db.session.commit()
-            except Exception as e:
-                print(f"Error logging activity: {e}")
-            
-            flash(f'Advert "{title}" created successfully and approved (free)!', 'success')
-            return redirect(url_for('admin_adverts'))
+                except Exception as render_error:
+                    print(f"Error rendering form after error: {render_error}")
+                    import traceback
+                    traceback.print_exc()
+                    return redirect(url_for('admin_adverts'))
         except Exception as e:
-            print(f"Error creating advert: {e}")
+            # Catch any unhandled exceptions in POST handler
+            print(f"Unhandled exception in POST handler: {e}")
+            import traceback
+            traceback.print_exc()
             db.session.rollback()
-            flash('Error creating advert. Please try again.', 'danger')
+            flash('An unexpected error occurred. Please try again.', 'danger')
+            try:
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
+            except Exception:
+                return redirect(url_for('admin_adverts'))
     
     # GET request - show form
     if not db_connected:
