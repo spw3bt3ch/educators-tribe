@@ -1549,6 +1549,50 @@ def toggle_user_status(user_id):
     
     return redirect(url_for('admin_users'))
 
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    """Admin - Delete user and all related data"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            flash('User not found.', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        # Prevent regular users from deleting themselves (if they somehow access this)
+        # Admins can delete any regular user
+        if isinstance(current_user, User) and current_user.id == user_id:
+            flash('You cannot delete your own account. Please contact an admin.', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        # Store username for flash message
+        username = user.username
+        
+        # Delete related records
+        # Delete user's blog posts
+        BlogPost.query.filter_by(author_id=user_id).delete()
+        
+        # Delete user's adverts
+        Advert.query.filter_by(submitted_by=user_id).delete()
+        
+        # Delete user's activities
+        UserActivity.query.filter_by(user_id=user_id).delete()
+        
+        # Delete user's email tokens
+        EmailToken.query.filter_by(user_id=user_id).delete()
+        
+        # Delete the user
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'User {username} and all related data have been deleted successfully.', 'success')
+    except Exception as e:
+        print(f"Error deleting user: {e}")
+        db.session.rollback()
+        flash('Error deleting user. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_users'))
+
 @app.route('/news')
 def news():
     """News page"""
