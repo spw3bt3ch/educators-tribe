@@ -2059,6 +2059,83 @@ def reject_advert(advert_id):
     
     return redirect(url_for('admin_adverts'))
 
+@app.route('/admin/advert/<int:advert_id>/deactivate', methods=['POST'])
+@admin_required
+def deactivate_advert(advert_id):
+    """Admin - Deactivate advert (change status to rejected)"""
+    try:
+        advert = Advert.query.get(advert_id)
+        if not advert:
+            flash('Advert not found.', 'danger')
+            return redirect(url_for('admin_adverts'))
+        
+        # Store title for flash message
+        advert_title = advert.title
+        
+        # Deactivate by changing status to rejected
+        advert.status = 'rejected'
+        advert.admin_notes = (advert.admin_notes or '') + f'\n\nDeactivated by admin on {datetime.utcnow().strftime("%Y-%m-%d %H:%M")}'
+        db.session.commit()
+        
+        # Log activity
+        try:
+            activity = UserActivity(
+                user_id=advert.submitted_by,
+                action='advert_deactivated',
+                description=f'Admin deactivated advert: {advert_title}'
+            )
+            db.session.add(activity)
+            db.session.commit()
+        except Exception as e:
+            print(f"Error logging activity: {e}")
+        
+        flash(f'Advert "{advert_title}" has been deactivated successfully.', 'success')
+    except Exception as e:
+        print(f"Error deactivating advert: {e}")
+        db.session.rollback()
+        flash('Error deactivating advert. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_adverts'))
+
+@app.route('/admin/advert/<int:advert_id>/delete', methods=['POST'])
+@admin_required
+def delete_advert(advert_id):
+    """Admin - Delete advert permanently"""
+    try:
+        advert = Advert.query.get(advert_id)
+        if not advert:
+            flash('Advert not found.', 'danger')
+            return redirect(url_for('admin_adverts'))
+        
+        # Store title and user_id for flash message and activity
+        advert_title = advert.title
+        submitted_by = advert.submitted_by
+        
+        # Delete the advert
+        db.session.delete(advert)
+        db.session.commit()
+        
+        # Log activity
+        try:
+            if submitted_by:
+                activity = UserActivity(
+                    user_id=submitted_by,
+                    action='advert_deleted',
+                    description=f'Admin deleted advert: {advert_title}'
+                )
+                db.session.add(activity)
+                db.session.commit()
+        except Exception as e:
+            print(f"Error logging activity: {e}")
+        
+        flash(f'Advert "{advert_title}" has been deleted successfully.', 'success')
+    except Exception as e:
+        print(f"Error deleting advert: {e}")
+        db.session.rollback()
+        flash('Error deleting advert. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_adverts'))
+
 @app.route('/admin/advert/pricing', methods=['GET', 'POST'])
 @admin_required
 def admin_advert_pricing():
