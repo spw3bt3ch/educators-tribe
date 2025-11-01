@@ -2400,15 +2400,27 @@ def create_advert():
                     return redirect(url_for('admin_adverts'))
         except Exception as e:
             # Catch any unhandled exceptions in POST handler
-            print(f"Unhandled exception in POST handler: {e}")
+            error_msg = str(e)
+            print(f"Unhandled exception in POST handler: {error_msg}")
+            print(f"Exception type: {type(e).__name__}")
             import traceback
             traceback.print_exc()
             db.session.rollback()
-            flash('An unexpected error occurred. Please try again.', 'danger')
+            
+            # Provide more specific error message
+            if 'weeks' in error_msg.lower() or 'start_date' in error_msg.lower() or 'end_date' in error_msg.lower():
+                flash(f'Database error: {error_msg}. Please ensure the database schema is up to date.', 'danger')
+            elif 'image' in error_msg.lower() or 'file' in error_msg.lower():
+                flash(f'File upload error: {error_msg}. Please try using an image URL instead.', 'danger')
+            else:
+                flash(f'An unexpected error occurred: {error_msg}. Please try again.', 'danger')
+            
             try:
                 users = User.query.filter_by(is_active=True).order_by(User.username).all()
                 return render_template('admin_create_advert.html', users=users)
-            except Exception:
+            except Exception as render_err:
+                print(f"Error rendering form after error: {render_err}")
+                traceback.print_exc()
                 return redirect(url_for('admin_adverts'))
     
     # GET request - show form
