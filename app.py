@@ -2071,6 +2071,12 @@ def admin_advert_pricing():
         try:
             amount_float = float(amount) if amount else 0.00
             
+            # Validate amount is non-negative
+            if amount_float < 0:
+                flash('Amount cannot be negative. Please enter a valid positive number or zero.', 'danger')
+                return redirect(url_for('admin_advert_pricing'))
+            
+            # Update or create pricing record
             if pricing:
                 pricing.amount = amount_float
                 pricing.updated_at = datetime.utcnow()
@@ -2083,7 +2089,9 @@ def admin_advert_pricing():
         except ValueError:
             flash('Invalid amount. Please enter a valid number.', 'danger')
         except Exception as e:
-            flash('Error updating pricing.', 'danger')
+            print(f"Error updating pricing: {e}")
+            db.session.rollback()
+            flash('Error updating pricing. Please try again.', 'danger')
         
         return redirect(url_for('admin_advert_pricing'))
     
