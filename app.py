@@ -2309,36 +2309,20 @@ def create_advert():
                 users = User.query.filter_by(is_active=True).order_by(User.username).all()
                 return render_template('admin_create_advert.html', users=users)
             
-            # Handle image upload or URL
-            if 'image_file' in request.files:
-                file = request.files['image_file']
-                if file and file.filename:
-                    filename = file.filename
-                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-                    
-                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                        # Save uploaded file
-                        upload_folder = os.path.join(app.root_path, 'static', 'images', 'adverts')
-                        os.makedirs(upload_folder, exist_ok=True)
-                        
-                        # Generate unique filename
-                        filename = secure_filename(filename)
-                        filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
-                        filepath = os.path.join(upload_folder, filename)
-                        file.save(filepath)
-                        
-                        # Set image URL to the saved file path
-                        image_url = url_for('static', filename=f'images/adverts/{filename}')
-                    else:
-                        flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
-                        users = User.query.filter_by(is_active=True).order_by(User.username).all()
-                        return render_template('admin_create_advert.html', users=users)
+            # Handle image URL only (file uploads disabled on Vercel - read-only file system)
+            image_url_input = request.form.get('image_url', '').strip()
+            if not image_url_input:
+                flash('Image URL is required. Please provide a URL to the image.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
             
-            # If no file upload, check for image URL
-            if not image_url:
-                image_url_input = request.form.get('image_url', '').strip()
-                if image_url_input:
-                    image_url = image_url_input
+            image_url = image_url_input
+            
+            # Validate URL format
+            if not image_url.startswith(('http://', 'https://')):
+                flash('Please provide a valid image URL starting with http:// or https://', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_create_advert.html', users=users)
             
             # Get weeks (default 1)
             weeks = request.form.get('weeks', type=int) or 1
