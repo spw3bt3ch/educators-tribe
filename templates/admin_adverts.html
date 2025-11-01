@@ -28,10 +28,11 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -44,11 +45,14 @@
                         data-button-text="{{ advert.button_text or 'Learn More' }}"
                         data-image-url="{{ advert.image_url or '' }}"
                         data-amount="{{ advert.amount or 0 }}"
+                        data-weeks="{{ advert.weeks or 1 }}"
                         data-status="{{ advert.status }}"
                         data-payment-status="{{ advert.payment_status }}"
                         data-submitted-by="{{ advert.user.username }}"
                         data-submitted-at="{% if advert.submitted_at is string %}{{ advert.submitted_at[:19] }}{% else %}{{ advert.submitted_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}"
                         data-approved-at="{% if advert.approved_at %}{% if advert.approved_at is string %}{{ advert.approved_at[:19] }}{% else %}{{ advert.approved_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}{% else %}N/A{% endif %}"
+                        data-start-date="{% if advert.start_date %}{% if advert.start_date is string %}{{ advert.start_date[:19] }}{% else %}{{ advert.start_date.strftime('%Y-%m-%d %H:%M') }}{% endif %}{% else %}N/A{% endif %}"
+                        data-end-date="{% if advert.end_date %}{% if advert.end_date is string %}{{ advert.end_date[:19] }}{% else %}{{ advert.end_date.strftime('%Y-%m-%d %H:%M') }}{% endif %}{% else %}N/A{% endif %}"
                         data-admin-notes="{{ advert.admin_notes or '' }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ advert.id }}</td>
                         <td class="px-6 py-4 text-sm text-gray-900">
@@ -66,6 +70,9 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ advert.user.username }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <span class="font-semibold">{{ advert.weeks or 1 }}</span> week{% if advert.weeks != 1 %}s{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             {% if advert.amount %}₦{{ "%.2f"|format(advert.amount) }}{% else %}N/A{% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -73,6 +80,10 @@
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
                             {% elif advert.status == 'approved' %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>
+                            {% elif advert.status == 'active' %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Active</span>
+                            {% elif advert.status == 'expired' %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
                             {% elif advert.status == 'rejected' %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
                             {% endif %}
@@ -87,10 +98,62 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {% if advert.submitted_at is string %}
-                                {{ advert.submitted_at[:10] }}
+                            {% if advert.status == 'active' and advert.end_date %}
+                                <div class="text-xs">
+                                    <div class="mb-1">
+                                        <span class="font-semibold text-blue-700">⏱️ Countdown:</span>
+                                        <div id="countdown-admin-{{ advert.id }}" class="inline-flex gap-1 ml-1">
+                                            <span class="font-bold text-blue-700" id="days-admin-{{ advert.id }}">0</span><span class="text-blue-600">d</span>
+                                            <span class="font-bold text-blue-700" id="hours-admin-{{ advert.id }}">0</span><span class="text-blue-600">h</span>
+                                            <span class="font-bold text-blue-700" id="minutes-admin-{{ advert.id }}">0</span><span class="text-blue-600">m</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-gray-500 text-xs mt-1">
+                                        Ends: {% if advert.end_date is string %}{{ advert.end_date[:10] }}{% else %}{{ advert.end_date.strftime('%Y-%m-%d') }}{% endif %}
+                                    </div>
+                                    <script>
+                                        (function() {
+                                            {% if advert.end_date and not (advert.end_date is string) %}
+                                            const endDate = new Date('{{ advert.end_date.strftime("%Y-%m-%d %H:%M:%S") }}');
+                                            {% else %}
+                                            const endDate = new Date('{{ advert.end_date }}');
+                                            {% endif %}
+                                            const advertId = {{ advert.id }};
+                                            
+                                            function updateCountdown() {
+                                                const now = new Date().getTime();
+                                                const distance = endDate.getTime() - now;
+                                                
+                                                if (distance < 0) {
+                                                    document.getElementById('countdown-admin-' + advertId).innerHTML = '<span class="text-red-600 font-semibold">Expired</span>';
+                                                    return;
+                                                }
+                                                
+                                                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                                                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                                                
+                                                document.getElementById('days-admin-' + advertId).textContent = days;
+                                                document.getElementById('hours-admin-' + advertId).textContent = hours;
+                                                document.getElementById('minutes-admin-' + advertId).textContent = minutes;
+                                            }
+                                            
+                                            updateCountdown();
+                                            setInterval(updateCountdown, 60000); // Update every minute
+                                        })();
+                                    </script>
+                                </div>
+                            {% elif advert.start_date and advert.end_date %}
+                                <div class="text-xs">
+                                    <div><strong>Start:</strong> {% if advert.start_date is string %}{{ advert.start_date[:10] }}{% else %}{{ advert.start_date.strftime('%Y-%m-%d') }}{% endif %}</div>
+                                    <div><strong>End:</strong> {% if advert.end_date is string %}{{ advert.end_date[:10] }}{% else %}{{ advert.end_date.strftime('%Y-%m-%d') }}{% endif %}</div>
+                                </div>
+                            {% elif advert.submitted_at %}
+                                <div class="text-xs text-gray-500">
+                                    Submitted: {% if advert.submitted_at is string %}{{ advert.submitted_at[:10] }}{% else %}{{ advert.submitted_at.strftime('%Y-%m-%d') }}{% endif %}
+                                </div>
                             {% else %}
-                                {{ advert.submitted_at.strftime('%Y-%m-%d') }}
+                                N/A
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -109,7 +172,7 @@
                                     Reject
                                 </button>
                                 {% endif %}
-                                {% if advert.status == 'approved' %}
+                                {% if advert.status == 'active' or advert.status == 'approved' %}
                                 <form action="{{ url_for('deactivate_advert', advert_id=advert.id) }}" method="POST" class="inline-block" 
                                       onsubmit="return confirm('Are you sure you want to deactivate this advert?');">
                                     <button type="submit" 
@@ -263,11 +326,14 @@ function showAdvertDetails(advertId) {
         const buttonText = advertRow.dataset.buttonText || 'Learn More';
         const imageUrl = advertRow.dataset.imageUrl || '';
         const amount = parseFloat(advertRow.dataset.amount) || 0;
+        const weeks = parseInt(advertRow.dataset.weeks) || 1;
         const status = advertRow.dataset.status || 'N/A';
         const paymentStatus = advertRow.dataset.paymentStatus || 'N/A';
         const submittedBy = advertRow.dataset.submittedBy || 'N/A';
         const submittedAt = advertRow.dataset.submittedAt || 'N/A';
         const approvedAt = advertRow.dataset.approvedAt || 'N/A';
+        const startDate = advertRow.dataset.startDate || 'N/A';
+        const endDate = advertRow.dataset.endDate || 'N/A';
         const adminNotes = advertRow.dataset.adminNotes || 'N/A';
         
         // Status badge HTML
@@ -276,6 +342,10 @@ function showAdvertDetails(advertId) {
             statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>';
         } else if (status === 'approved') {
             statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>';
+        } else if (status === 'active') {
+            statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Active</span>';
+        } else if (status === 'expired') {
+            statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>';
         } else if (status === 'rejected') {
             statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>';
         }
@@ -332,13 +402,29 @@ function showAdvertDetails(advertId) {
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <p class="text-gray-900 font-semibold">${amount > 0 ? '₦' + amount.toFixed(2) : 'N/A'}</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                    <p class="text-gray-900 font-semibold">${weeks} week${weeks > 1 ? 's' : ''}</p>
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                    <p class="text-gray-900 font-semibold">${amount > 0 ? '₦' + amount.toFixed(2) : 'Free'}</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
                     <p>${paymentBadge}</p>
                 </div>
+                ${startDate !== 'N/A' && endDate !== 'N/A' ? `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Running Period</label>
+                    <p class="text-gray-900">
+                        <strong>Start:</strong> ${escapeHtml(startDate)}<br>
+                        <strong>End:</strong> ${escapeHtml(endDate)}
+                    </p>
+                </div>
+                ` : ''}
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -28,6 +28,8 @@
                     <span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
                     {% elif advert.status == 'approved' %}
                     <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>
+                    {% elif advert.status == 'active' %}
+                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Active</span>
                     {% elif advert.status == 'rejected' %}
                     <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
                     {% endif %}
@@ -35,6 +37,65 @@
                 
                 {% if advert.description %}
                 <p class="text-gray-600 mb-4 line-clamp-3">{{ advert.description }}</p>
+                {% endif %}
+                
+                <!-- Countdown Timer for Active Adverts -->
+                {% if advert.status == 'active' and advert.end_date %}
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm font-semibold text-blue-900 mb-2">⏱️ Time Remaining:</p>
+                    <div id="countdown-{{ advert.id }}" class="flex gap-2 text-xs">
+                        <span class="countdown-item bg-white px-2 py-1 rounded border border-blue-200">
+                            <span class="font-bold text-blue-700" id="days-{{ advert.id }}">0</span>
+                            <span class="text-blue-600">d</span>
+                        </span>
+                        <span class="countdown-item bg-white px-2 py-1 rounded border border-blue-200">
+                            <span class="font-bold text-blue-700" id="hours-{{ advert.id }}">0</span>
+                            <span class="text-blue-600">h</span>
+                        </span>
+                        <span class="countdown-item bg-white px-2 py-1 rounded border border-blue-200">
+                            <span class="font-bold text-blue-700" id="minutes-{{ advert.id }}">0</span>
+                            <span class="text-blue-600">m</span>
+                        </span>
+                        <span class="countdown-item bg-white px-2 py-1 rounded border border-blue-200">
+                            <span class="font-bold text-blue-700" id="seconds-{{ advert.id }}">0</span>
+                            <span class="text-blue-600">s</span>
+                        </span>
+                    </div>
+                    <script>
+                        // Countdown timer for advert {{ advert.id }}
+                        (function() {
+                            {% if advert.end_date and not (advert.end_date is string) %}
+                            const endDate = new Date('{{ advert.end_date.strftime("%Y-%m-%d %H:%M:%S") }}');
+                            {% else %}
+                            const endDate = new Date('{{ advert.end_date }}');
+                            {% endif %}
+                            const advertId = {{ advert.id }};
+                            
+                            function updateCountdown() {
+                                const now = new Date().getTime();
+                                const distance = endDate.getTime() - now;
+                                
+                                if (distance < 0) {
+                                    document.getElementById('countdown-' + advertId).innerHTML = '<span class="text-red-600 font-semibold">Expired</span>';
+                                    return;
+                                }
+                                
+                                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                                
+                                document.getElementById('days-' + advertId).textContent = days;
+                                document.getElementById('hours-' + advertId).textContent = hours;
+                                document.getElementById('minutes-' + advertId).textContent = minutes;
+                                document.getElementById('seconds-' + advertId).textContent = seconds;
+                            }
+                            
+                            updateCountdown();
+                            setInterval(updateCountdown, 1000);
+                        })();
+                    </script>
+                </div>
                 {% endif %}
                 
                 <div class="space-y-2 text-sm text-gray-600 mb-4">
@@ -50,6 +111,7 @@
                     {% if advert.amount %}
                     <p><strong>Amount:</strong> ₦{{ "%.2f"|format(advert.amount) }}</p>
                     {% endif %}
+                    <p><strong>Duration:</strong> {{ advert.weeks or 1 }} week{% if (advert.weeks or 1) != 1 %}s{% endif %}</p>
                     <p><strong>Submitted:</strong> 
                         {% if advert.submitted_at is string %}
                             {{ advert.submitted_at[:10] }}
@@ -74,7 +136,7 @@
                 </div>
                 {% endif %}
                 
-                {% if advert.link_url and advert.status == 'approved' %}
+                {% if advert.link_url and (advert.status == 'approved' or advert.status == 'active') %}
                 <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
                    class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition">
                     {{ advert.button_text or 'Visit Link' }}

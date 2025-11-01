@@ -99,9 +99,78 @@
         </div>
         {% endif %}
 
+        <!-- Comments Section -->
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Comments ({{ comments|length }})</h2>
+            
+            <!-- Comment Form -->
+            {% if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin' %}
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Add a Comment</h3>
+                <form method="POST" action="{{ url_for('add_comment', post_id=post.id) }}">
+                    <div class="mb-4">
+                        <textarea name="content" id="content" rows="4" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                                  placeholder="Write your comment here..."></textarea>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+                            Post Comment
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% elif not current_user.is_authenticated %}
+            <div class="bg-green-50 rounded-lg p-6 text-center border border-green-200 mb-8">
+                <p class="text-gray-600 mb-4">Please <a href="{{ url_for('login') }}" class="text-green-600 hover:text-green-800 font-semibold">login</a> to leave a comment.</p>
+            </div>
+            {% endif %}
+            
+            <!-- Comments List -->
+            {% if comments %}
+            <div class="space-y-6">
+                {% for comment in comments %}
+                <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+                    <div class="flex items-start space-x-4">
+                        <!-- User Avatar -->
+                        {% if comment.user.profile_picture %}
+                        <img src="{{ comment.user.profile_picture }}" alt="{{ comment.user.username }}" 
+                             class="w-10 h-10 rounded-full object-cover border-2 border-green-500">
+                        {% else %}
+                        <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                            {{ comment.user.username[0].upper() }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Comment Content -->
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <p class="font-semibold text-gray-900">{{ comment.user.full_name or comment.user.username }}</p>
+                                <span class="text-sm text-gray-500">•</span>
+                                <p class="text-sm text-gray-500">
+                                    {% if comment.created_at is string %}
+                                        {{ comment.created_at[:16] }}
+                                    {% else %}
+                                        {{ comment.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ comment.content }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="bg-gray-50 rounded-lg p-8 text-center border border-gray-200">
+                <p class="text-gray-600">No comments yet. Be the first to comment!</p>
+            </div>
+            {% endif %}
+        </div>
+
         <!-- Call to Action -->
         {% if not current_user.is_authenticated %}
-        <div class="bg-green-50 rounded-lg p-6 text-center border border-green-200">
+        <div class="bg-green-50 rounded-lg p-6 text-center border border-green-200 mt-8">
             <h3 class="text-xl font-semibold text-gray-900 mb-2">Join the Conversation</h3>
             <p class="text-gray-600 mb-4">Create your account to write and share your own blog posts!</p>
             <a href="{{ url_for('register') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-block">
@@ -109,7 +178,7 @@
             </a>
         </div>
         {% elif current_user.__class__.__name__ != 'Admin' %}
-        <div class="bg-green-50 rounded-lg p-6 text-center border border-green-200">
+        <div class="bg-green-50 rounded-lg p-6 text-center border border-green-200 mt-8">
             <h3 class="text-xl font-semibold text-gray-900 mb-2">Share Your Thoughts</h3>
             <p class="text-gray-600 mb-4">Have something to say? Write your own blog post!</p>
             <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-block">
