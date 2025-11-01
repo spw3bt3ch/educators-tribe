@@ -38,24 +38,24 @@
             </div>
             
             <div>
-                <label for="image_file" class="block text-sm font-medium text-gray-700 mb-2">Advert Image</label>
-                <input type="file" id="image_file" name="image_file" accept="image/png,image/jpg,image/jpeg,image/gif,image/webp"
+                <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">Advert Image URL *</label>
+                <input type="url" id="image_url" name="image_url"
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                       onchange="previewImage(event)">
-                <p class="text-sm text-gray-500 mt-1">Upload an image file (PNG, JPG, JPEG, GIF, or WEBP) - Max 5MB</p>
+                       placeholder="https://example.com/image.jpg"
+                       onchange="previewImageFromUrl(event)"
+                       required>
+                <p class="text-sm text-gray-500 mt-1">Please provide a URL to the image (PNG, JPG, JPEG, GIF, or WEBP)</p>
                 
                 <!-- Image Preview -->
                 <div id="image-preview" class="mt-4 hidden">
                     <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg border border-gray-300">
                 </div>
                 
-                <!-- Alternative: Image URL -->
-                <div class="mt-4">
-                    <p class="text-sm text-gray-600 mb-2">Or provide an image URL:</p>
-                    <input type="url" id="image_url" name="image_url"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="https://example.com/image.jpg"
-                           onchange="previewImageFromUrl(event)">
+                <div class="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p class="text-sm text-blue-800">
+                        <strong>ℹ️ Note:</strong> Please use an image URL (link to an image hosted elsewhere). 
+                        Direct file uploads are not available.
+                    </p>
                 </div>
             </div>
             
@@ -102,23 +102,6 @@
 </div>
 
 <script>
-function previewImage(event) {
-    const file = event.target.files[0];
-    const preview = document.getElementById('image-preview');
-    const previewImg = document.getElementById('preview-img');
-    
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            preview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-    } else {
-        preview.classList.add('hidden');
-    }
-}
-
 function previewImageFromUrl(event) {
     const url = event.target.value;
     const preview = document.getElementById('image-preview');
