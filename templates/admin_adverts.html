@@ -32,7 +32,19 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for advert in adverts %}
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50" data-advert-id="{{ advert.id }}" 
+                        data-title="{{ advert.title }}" 
+                        data-description="{{ advert.description or '' }}" 
+                        data-link-url="{{ advert.link_url or '' }}" 
+                        data-button-text="{{ advert.button_text or 'Learn More' }}"
+                        data-image-url="{{ advert.image_url or '' }}"
+                        data-amount="{{ advert.amount or 0 }}"
+                        data-status="{{ advert.status }}"
+                        data-payment-status="{{ advert.payment_status }}"
+                        data-submitted-by="{{ advert.user.username }}"
+                        data-submitted-at="{% if advert.submitted_at is string %}{{ advert.submitted_at[:19] }}{% else %}{{ advert.submitted_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}"
+                        data-approved-at="{% if advert.approved_at %}{% if advert.approved_at is string %}{{ advert.approved_at[:19] }}{% else %}{{ advert.approved_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}{% else %}N/A{% endif %}"
+                        data-admin-notes="{{ advert.admin_notes or '' }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ advert.id }}</td>
                         <td class="px-6 py-4 text-sm text-gray-900">
                             <div class="flex items-center">
@@ -179,6 +191,26 @@
     </div>
 </div>
 
+<!-- View Advert Details Modal -->
+<div id="viewAdvertModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto" onclick="if(event.target === this) closeViewAdvertModal();">
+    <div class="bg-white rounded-lg p-8 max-w-3xl w-full mx-4 my-8" onclick="event.stopPropagation();">
+        <div class="flex justify-between items-start mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">Advertisement Details</h3>
+            <button onclick="closeViewAdvertModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        
+        <div id="advertDetailsContent" class="space-y-6">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+            <button onclick="closeViewAdvertModal()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 const advertsData = [
     {% for advert in adverts %}
@@ -215,20 +247,135 @@ function closeRejectModal() {
 }
 
 function showAdvertDetails(advertId) {
-    // Find advert in the page data
     const advertRow = document.querySelector(`[data-advert-id="${advertId}"]`);
+    const modal = document.getElementById('viewAdvertModal');
+    const content = document.getElementById('advertDetailsContent');
+    
     if (advertRow) {
         const title = advertRow.dataset.title || 'N/A';
         const description = advertRow.dataset.description || 'N/A';
         const linkUrl = advertRow.dataset.linkUrl || 'N/A';
-        const amount = advertRow.dataset.amount || 'N/A';
-        alert(`Title: ${title}\n\nDescription: ${description}\n\nLink: ${linkUrl}\n\nAmount: ${amount !== 'N/A' ? '₦' + parseFloat(amount).toFixed(2) : 'N/A'}`);
-    } else if (typeof advertsData !== 'undefined') {
-        const advert = advertsData.find(a => String(a.id) === String(advertId));
-        if (advert) {
-            alert(`Title: ${advert.title}\n\nDescription: ${advert.description || 'N/A'}\n\nLink: ${advert.link_url || 'N/A'}\n\nAmount: ${advert.amount ? '₦' + advert.amount.toFixed(2) : 'N/A'}`);
+        const buttonText = advertRow.dataset.buttonText || 'Learn More';
+        const imageUrl = advertRow.dataset.imageUrl || '';
+        const amount = parseFloat(advertRow.dataset.amount) || 0;
+        const status = advertRow.dataset.status || 'N/A';
+        const paymentStatus = advertRow.dataset.paymentStatus || 'N/A';
+        const submittedBy = advertRow.dataset.submittedBy || 'N/A';
+        const submittedAt = advertRow.dataset.submittedAt || 'N/A';
+        const approvedAt = advertRow.dataset.approvedAt || 'N/A';
+        const adminNotes = advertRow.dataset.adminNotes || 'N/A';
+        
+        // Status badge HTML
+        let statusBadge = '';
+        if (status === 'pending') {
+            statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>';
+        } else if (status === 'approved') {
+            statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>';
+        } else if (status === 'rejected') {
+            statusBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>';
         }
+        
+        // Payment status badge HTML
+        let paymentBadge = '';
+        if (paymentStatus === 'paid') {
+            paymentBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Paid</span>';
+        } else if (paymentStatus === 'pending') {
+            paymentBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>';
+        } else {
+            paymentBadge = '<span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Unpaid</span>';
+        }
+        
+        // Build the content HTML
+        content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <p class="text-gray-900 font-semibold">${escapeHtml(title)}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <p>${statusBadge}</p>
+                </div>
+            </div>
+            
+            ${imageUrl ? `
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Image</label>
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" 
+                     class="max-w-full h-auto rounded-lg border border-gray-300" 
+                     style="max-height: 400px; object-fit: contain;">
+            </div>
+            ` : ''}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <p class="text-gray-900 whitespace-pre-wrap">${escapeHtml(description || 'No description provided')}</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Link URL</label>
+                    <p class="text-gray-900 break-all">
+                        ${linkUrl !== 'N/A' && linkUrl ? `<a href="${escapeHtml(linkUrl)}" target="_blank" class="text-blue-600 hover:underline">${escapeHtml(linkUrl)}</a>` : 'N/A'}
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Button Text</label>
+                    <p class="text-gray-900">${escapeHtml(buttonText)}</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                    <p class="text-gray-900 font-semibold">${amount > 0 ? '₦' + amount.toFixed(2) : 'N/A'}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                    <p>${paymentBadge}</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Submitted By</label>
+                    <p class="text-gray-900">${escapeHtml(submittedBy)}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Submitted At</label>
+                    <p class="text-gray-900">${escapeHtml(submittedAt)}</p>
+                </div>
+            </div>
+            
+            ${approvedAt !== 'N/A' ? `
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Approved At</label>
+                <p class="text-gray-900">${escapeHtml(approvedAt)}</p>
+            </div>
+            ` : ''}
+            
+            ${adminNotes !== 'N/A' && adminNotes ? `
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
+                <p class="text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-200">${escapeHtml(adminNotes)}</p>
+            </div>
+            ` : ''}
+        `;
+        
+        modal.classList.remove('hidden');
+    } else {
+        alert('Advert details not found.');
     }
+}
+
+function closeViewAdvertModal() {
+    document.getElementById('viewAdvertModal').classList.add('hidden');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 {% endblock %}
