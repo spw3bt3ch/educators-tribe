@@ -1140,12 +1140,16 @@ def register():
         return redirect(url_for('index'))
     
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        full_name = request.form.get('full_name')
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        full_name = request.form.get('full_name', '').strip()
         
         # Validation
+        if not username or not email or not password:
+            flash('Please fill in all required fields.', 'danger')
+            return redirect(url_for('register'))
+        
         if User.query.filter_by(username=username).first():
             flash('Username already exists. Please choose another.', 'danger')
             return redirect(url_for('register'))
