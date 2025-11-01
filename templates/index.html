@@ -51,7 +51,23 @@
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-3">{{ advert.title }}</h3>
                                 {% if advert.description %}
-                                <p class="text-gray-600 mb-4 text-sm md:text-base leading-relaxed">{{ advert.description }}</p>
+                                <div class="text-gray-600 mb-4 text-sm md:text-base leading-relaxed">
+                                    {% set desc_length = advert.description|length %}
+                                    <div id="advert-description-short-{{ advert.id }}" {% if desc_length > 150 %}class="line-clamp-3"{% endif %}>
+                                        {{ advert.description }}
+                                    </div>
+                                    {% if desc_length > 150 %}
+                                    <div id="advert-description-full-{{ advert.id }}" class="hidden">
+                                        {{ advert.description }}
+                                    </div>
+                                    <button type="button"
+                                            onclick="toggleDescription({{ advert.id }}); return false;"
+                                            id="read-more-btn-{{ advert.id }}"
+                                            class="text-green-600 hover:text-green-800 font-semibold text-sm mt-2 underline cursor-pointer">
+                                        Read more
+                                    </button>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
                                 {% if advert.link_url %}
                                 <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
@@ -360,6 +376,49 @@ setInterval(() => {
     currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
     showAdvert(currentAdvertIndex);
 }, 5000); // Change every 5 seconds
+
+// Toggle description read more/less
+function toggleDescription(advertId) {
+    console.log('Toggle called for advert:', advertId);
+    const shortDesc = document.getElementById('advert-description-short-' + advertId);
+    const fullDesc = document.getElementById('advert-description-full-' + advertId);
+    const btn = document.getElementById('read-more-btn-' + advertId);
+    
+    console.log('Elements found:', { shortDesc: !!shortDesc, fullDesc: !!fullDesc, btn: !!btn });
+    
+    if (!shortDesc || !fullDesc || !btn) {
+        console.error('Elements not found for advert:', advertId);
+        return;
+    }
+    
+    // Check if full description is currently visible (means we need to show short)
+    if (!fullDesc.classList.contains('hidden')) {
+        // Show short version
+        console.log('Showing short version');
+        shortDesc.classList.remove('hidden');
+        fullDesc.classList.add('hidden');
+        btn.textContent = 'Read more';
+    } else {
+        // Show full version
+        console.log('Showing full version');
+        shortDesc.classList.add('hidden');
+        fullDesc.classList.remove('hidden');
+        btn.textContent = 'Read less';
+    }
+}
+
+// Make toggleDescription available globally
+window.toggleDescription = toggleDescription;
+
+// Set up event listeners for read more buttons using event delegation
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.id && e.target.id.startsWith('read-more-btn-')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const advertId = e.target.id.replace('read-more-btn-', '');
+        toggleDescription(parseInt(advertId));
+    }
+});
 
 // Indicator click handlers
 document.querySelectorAll('.advert-indicator').forEach((ind, index) => {
