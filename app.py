@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 import threading
 import time
-from sqlalchemy import func
+from sqlalchemy import func, nullslast
 from sqlalchemy import text
 import smtplib
 from email.mime.text import MIMEText
@@ -153,7 +153,10 @@ class Advert(db.Model):
     button_text = db.Column(db.String(100), default='Learn More')
     submitted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     amount = db.Column(db.Numeric(10, 2), nullable=True)
-    status = db.Column(db.String(50), default='pending', nullable=False)
+    weeks = db.Column(db.Integer, default=1, nullable=False)  # Number of weeks to run
+    start_date = db.Column(db.DateTime, nullable=True)  # When advert starts running
+    end_date = db.Column(db.DateTime, nullable=True)  # When advert expires
+    status = db.Column(db.String(50), default='pending', nullable=False)  # pending, approved, active, expired, rejected
     payment_status = db.Column(db.String(50), default='pending', nullable=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     approved_at = db.Column(db.DateTime, nullable=True)
@@ -169,6 +172,16 @@ class BlogPost(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     author = db.relationship('User', backref='posts')
+    comments = db.relationship('PostComment', backref='post', lazy='dynamic', cascade='all, delete-orphan', order_by='PostComment.created_at.asc()')
+
+class PostComment(db.Model):
+    __tablename__ = 'post_comments'
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('blog_posts.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    user = db.relationship('User', backref='comments')
 
 class UserActivity(db.Model):
     __tablename__ = 'user_activities'
@@ -193,7 +206,7 @@ class EmailToken(db.Model):
 class AdvertPricing(db.Model):
     __tablename__ = 'advert_pricing'
     id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    amount = db.Column(db.Numeric(10, 2), nullable=False, default=500.00)  # Price per week (default 500 naira)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 @login_manager.user_loader
@@ -1112,12 +1125,19 @@ def index():
     else:
         latest_posts = []
     
-    # Get approved adverts for carousel
+    # Get active adverts for carousel (not expired) - cleanup before querying
     if db_connected:
-        approved_adverts = Advert.query.filter_by(
-            status='approved', 
-            payment_status='paid'
-        ).order_by(Advert.approved_at.desc()).all()
+        cleanup_expired_adverts()
+        now = datetime.utcnow()
+        # Include both 'active' and 'approved' status for backwards compatibility
+        # Also handle NULL start_date in ordering
+        approved_adverts = Advert.query.filter(
+            (Advert.status == 'active') | (Advert.status == 'approved'),
+            Advert.payment_status == 'paid',
+            (Advert.end_date.is_(None) | (Advert.end_date > now))
+        ).order_by(
+            nullslast(Advert.start_date.desc())  # Handle NULL start_date
+        ).all()
     else:
         approved_adverts = []
     
@@ -1572,6 +1592,9 @@ def delete_user(user_id):
         # Delete user's blog posts
         BlogPost.query.filter_by(author_id=user_id).delete()
         
+        # Delete user's comments
+        PostComment.query.filter_by(user_id=user_id).delete()
+        
         # Delete user's adverts
         Advert.query.filter_by(submitted_by=user_id).delete()
         
@@ -1647,12 +1670,19 @@ def blog():
         posts = []
         pagination = None
     
-    # Get approved adverts for sidebar
+    # Get active adverts for sidebar (not expired) - cleanup before querying
     if db_connected:
-        approved_adverts = Advert.query.filter_by(
-            status='approved', 
-            payment_status='paid'
-        ).order_by(Advert.approved_at.desc()).limit(5).all()
+        cleanup_expired_adverts()
+        now = datetime.utcnow()
+        # Include both 'active' and 'approved' status for backwards compatibility
+        # Also handle NULL start_date in ordering
+        approved_adverts = Advert.query.filter(
+            (Advert.status == 'active') | (Advert.status == 'approved'),
+            Advert.payment_status == 'paid',
+            (Advert.end_date.is_(None) | (Advert.end_date > now))
+        ).order_by(
+            nullslast(Advert.start_date.desc())  # Handle NULL start_date
+        ).limit(5).all()
     else:
         approved_adverts = []
     
@@ -1757,11 +1787,66 @@ def post_detail(post_id):
             BlogPost.id != post.id
         ).order_by(BlogPost.created_at.desc()).limit(3).all()
         
-        return render_template('post_detail.html', post=post, related_posts=related_posts)
+        # Get comments for this post
+        comments = PostComment.query.filter_by(post_id=post_id).order_by(PostComment.created_at.asc()).all()
+        
+        return render_template('post_detail.html', post=post, related_posts=related_posts, comments=comments)
     except Exception as e:
         print(f"Error fetching blog post: {e}")
         flash('Blog post not found.', 'danger')
         return redirect(url_for('blog'))
+
+@app.route('/blog/post/<int:post_id>/comment', methods=['POST'])
+@login_required
+def add_comment(post_id):
+    """Add a comment to a blog post"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('post_detail', post_id=post_id))
+    
+    # Prevent admins from commenting (they can create posts instead)
+    if current_user.__class__.__name__ == 'Admin':
+        flash('Admins cannot post comments. Please create a blog post instead.', 'warning')
+        return redirect(url_for('post_detail', post_id=post_id))
+    
+    try:
+        post = BlogPost.query.get_or_404(post_id)
+        
+        content = request.form.get('content', '').strip()
+        
+        if not content:
+            flash('Comment cannot be empty.', 'danger')
+            return redirect(url_for('post_detail', post_id=post_id))
+        
+        # Create comment
+        comment = PostComment(
+            post_id=post_id,
+            user_id=current_user.id,
+            content=content
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        # Log activity
+        try:
+            activity = UserActivity(
+                user_id=current_user.id,
+                action='comment',
+                description=f'User {current_user.username} commented on post: {post.title[:50]}'
+            )
+            db.session.add(activity)
+            db.session.commit()
+        except Exception as e:
+            print(f"Error logging activity: {e}")
+        
+        flash('Comment added successfully!', 'success')
+        return redirect(url_for('post_detail', post_id=post_id))
+    
+    except Exception as e:
+        print(f"Error adding comment: {e}")
+        db.session.rollback()
+        flash('An error occurred while adding the comment. Please try again.', 'danger')
+        return redirect(url_for('post_detail', post_id=post_id))
 
 @app.route('/blog/post/<int:post_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1896,19 +1981,29 @@ def delete_post(post_id):
 @login_required
 def submit_advert():
     """User advert submission"""
-    # Get advert pricing (admin-set)
+    # Get advert pricing (admin-set per week)
     pricing = AdvertPricing.query.first()
-    advert_amount = float(pricing.amount) if pricing else 0.00
+    price_per_week = float(pricing.amount) if pricing else 500.00
     
     if request.method == 'POST':
-        title = request.form.get('title')
-        description = request.form.get('description')
-        link_url = request.form.get('link_url')
-        button_text = request.form.get('button_text', 'Learn More')
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        link_url = request.form.get('link_url', '').strip()
+        button_text = request.form.get('button_text', 'Learn More').strip()
+        weeks = request.form.get('weeks', type=int) or 1
+        
+        # Validate weeks (minimum 1, maximum 52)
+        if weeks < 1:
+            weeks = 1
+        elif weeks > 52:
+            weeks = 52
+        
+        # Calculate total amount (weeks * price_per_week)
+        total_amount = weeks * price_per_week
         
         if not title:
             flash('Title is required.', 'danger')
-            return render_template('submit_advert.html', advert_amount=advert_amount)
+            return render_template('submit_advert.html', price_per_week=price_per_week)
         
         # Handle image upload or URL
         image_url = None
@@ -1933,7 +2028,7 @@ def submit_advert():
                     image_url = url_for('static', filename=f'images/adverts/{filename}')
                 else:
                     flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
-                    return render_template('submit_advert.html', advert_amount=advert_amount)
+                    return render_template('submit_advert.html', price_per_week=price_per_week)
         
         # If no file upload, check for image URL
         if not image_url:
@@ -1948,7 +2043,8 @@ def submit_advert():
             link_url=link_url,
             button_text=button_text,
             submitted_by=current_user.id,
-            amount=advert_amount,  # Use admin-set pricing
+            amount=total_amount,  # Total amount = weeks * price_per_week
+            weeks=weeks,
             status='pending',
             payment_status='pending'
         )
@@ -1960,20 +2056,59 @@ def submit_advert():
         activity = UserActivity(
             user_id=current_user.id,
             action='advert_submission',
-            description=f'User {current_user.username} submitted advert: {title}'
+            description=f'User {current_user.username} submitted advert: {title} for {weeks} week(s)'
         )
         db.session.add(activity)
         db.session.commit()
         
-        flash(f'Advert submitted successfully! Payment required: ₦{advert_amount:,.2f}. Admin will review it soon.', 'success')
+        flash(f'Advert submitted successfully! Payment required: ₦{total_amount:,.2f} for {weeks} week(s). After payment, your advert will automatically start running.', 'success')
         return redirect(url_for('my_adverts'))
     
-    return render_template('submit_advert.html', advert_amount=advert_amount)
+    return render_template('submit_advert.html', price_per_week=price_per_week)
+
+def cleanup_expired_adverts():
+    """Delete expired adverts automatically"""
+    try:
+        now = datetime.utcnow()
+        expired_adverts = Advert.query.filter(
+            Advert.end_date.isnot(None),
+            Advert.end_date <= now,
+            Advert.status == 'active'
+        ).all()
+        
+        for advert in expired_adverts:
+            # Log activity before deletion
+            try:
+                if advert.submitted_by:
+                    activity = UserActivity(
+                        user_id=advert.submitted_by,
+                        action='advert_expired',
+                        description=f'Advert "{advert.title}" expired and was automatically deleted'
+                    )
+                    db.session.add(activity)
+            except Exception as e:
+                print(f"Error logging expired advert activity: {e}")
+            
+            # Delete the expired advert
+            db.session.delete(advert)
+        
+        if expired_adverts:
+            db.session.commit()
+            print(f"✓ Cleaned up {len(expired_adverts)} expired adverts")
+        
+        return len(expired_adverts)
+    except Exception as e:
+        print(f"Error cleaning up expired adverts: {e}")
+        db.session.rollback()
+        return 0
 
 @app.route('/adverts/my')
 @login_required
 def my_adverts():
     """User's adverts"""
+    # Cleanup expired adverts before showing user's adverts
+    cleanup_expired_adverts()
+    
     adverts = Advert.query.filter_by(submitted_by=current_user.id).order_by(Advert.submitted_at.desc()).all()
     return render_template('my_adverts.html', adverts=adverts)
 
@@ -1981,6 +2116,9 @@ def my_adverts():
 @admin_required
 def admin_adverts():
     """Admin - View all adverts"""
+    # Cleanup expired adverts before showing admin adverts
+    cleanup_expired_adverts()
+    
     adverts = Advert.query.order_by(Advert.submitted_at.desc()).all()
     return render_template('admin_adverts.html', adverts=adverts)
 
@@ -2197,8 +2335,15 @@ def create_advert():
             if image_url_input:
                 image_url = image_url_input
         
+        # Get weeks (default 1)
+        weeks = request.form.get('weeks', type=int) or 1
+        if weeks < 1:
+            weeks = 1
+        elif weeks > 52:
+            weeks = 52
+        
         try:
-            # Create advert (free, automatically approved)
+            # Create advert (free, automatically approved and active)
             advert = Advert(
                 title=title,
                 description=description if description else None,
@@ -2207,9 +2352,12 @@ def create_advert():
                 button_text=button_text if button_text else 'Learn More',
                 submitted_by=user_id,
                 amount=0.00,  # Free for admin-created adverts
-                status='approved',  # Automatically approved
+                weeks=weeks,
+                status='active',  # Automatically approved and active
                 payment_status='paid',  # Free = paid
                 approved_at=datetime.utcnow(),
+                start_date=datetime.utcnow(),
+                end_date=datetime.utcnow() + timedelta(weeks=weeks),
                 admin_notes='Created by admin (free)'
             )
             
@@ -2239,6 +2387,125 @@ def create_advert():
     users = User.query.filter_by(is_active=True).order_by(User.username).all()
     return render_template('admin_create_advert.html', users=users)
 
+@app.route('/admin/post/create', methods=['GET', 'POST'])
+@admin_required
+def admin_create_post():
+    """Admin - Create blog post (assigned to admin name as blogger)"""
+    # Get or create admin user account for blog posts
+    admin_username = current_user.username if hasattr(current_user, 'username') else 'admin'
+    admin_email = current_user.email if hasattr(current_user, 'email') else 'admin@teacherstribe.com'
+    
+    # Try to find existing admin user account
+    admin_user = User.query.filter_by(username=admin_username).first()
+    
+    # If not found, create one for blog posts
+    if not admin_user:
+        try:
+            admin_user = User(
+                username=admin_username,
+                email=admin_email,
+                full_name=f'{admin_username.title()} (Admin Blogger)',
+                is_active=True,
+                email_verified=True
+            )
+            # Set a dummy password (won't be used for login since admin logs in via Admin model)
+            admin_user.set_password('dummy_password_not_used')
+            db.session.add(admin_user)
+            db.session.commit()
+        except Exception as e:
+            print(f"Error creating admin user account: {e}")
+            # If username exists, try with admin prefix
+            admin_username = f'admin_blogger'
+            admin_user = User.query.filter_by(username=admin_username).first()
+            if not admin_user:
+                admin_user = User(
+                    username=admin_username,
+                    email='admin@teacherstribe.com',
+                    full_name='Admin Blogger',
+                    is_active=True,
+                    email_verified=True
+                )
+                admin_user.set_password('dummy_password_not_used')
+                db.session.add(admin_user)
+                db.session.commit()
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        image_url = request.form.get('image_url', '').strip()
+        
+        # Validation
+        if not title or not content:
+            flash('Please provide both title and content.', 'danger')
+            return render_template('admin_create_post.html', admin_name=admin_user.full_name or admin_user.username)
+        
+        if len(title) > 500:
+            flash('Title is too long. Maximum 500 characters.', 'danger')
+            return render_template('admin_create_post.html', admin_name=admin_user.full_name or admin_user.username)
+        
+        try:
+            # Handle image upload
+            final_image_url = None
+            
+            # Check if image file was uploaded
+            if 'image_file' in request.files:
+                image_file = request.files['image_file']
+                if image_file and image_file.filename:
+                    # Validate file type
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(image_file.filename)
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Create posts directory if it doesn't exist
+                        upload_folder = os.path.join(app.root_path, 'static', 'images', 'posts')
+                        os.makedirs(upload_folder, exist_ok=True)
+                        
+                        # Generate unique filename
+                        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+                        filename = f"{timestamp}_admin_{admin_user.id}_{filename}"
+                        filepath = os.path.join(upload_folder, filename)
+                        
+                        # Save file
+                        image_file.save(filepath)
+                        final_image_url = url_for('static', filename=f'images/posts/{filename}')
+            
+            # If no file upload, use URL if provided
+            if not final_image_url and image_url:
+                final_image_url = image_url
+            
+            # Create blog post assigned to admin user
+            post = BlogPost(
+                title=title,
+                content=content,
+                image_url=final_image_url,
+                author_id=admin_user.id
+            )
+            db.session.add(post)
+            db.session.commit()
+            
+            # Log activity
+            try:
+                activity = UserActivity(
+                    user_id=admin_user.id,
+                    action='post_created_by_admin',
+                    description=f'Admin created blog post: {title[:50]}'
+                )
+                db.session.add(activity)
+                db.session.commit()
+            except Exception as e:
+                print(f"Error logging activity: {e}")
+            
+            flash(f'Blog post "{title}" created successfully as {admin_user.full_name or admin_user.username}!', 'success')
+            return redirect(url_for('post_detail', post_id=post.id))
+        
+        except Exception as e:
+            print(f"Error creating blog post: {e}")
+            db.session.rollback()
+            flash('An error occurred while creating the post. Please try again.', 'danger')
+    
+    # GET request - show form
+    admin_name = admin_user.full_name or admin_user.username
+    return render_template('admin_create_post.html', admin_name=admin_name)
+
 @app.route('/admin/advert/pricing', methods=['GET', 'POST'])
 @admin_required
 def admin_advert_pricing():
@@ -2265,7 +2532,7 @@ def admin_advert_pricing():
                 db.session.add(pricing)
             
             db.session.commit()
-            flash(f'Advert pricing updated to ₦{amount_float:,.2f}', 'success')
+            flash(f'Advert pricing updated to ₦{amount_float:,.2f} per week', 'success')
         except ValueError:
             flash('Invalid amount. Please enter a valid number.', 'danger')
         except Exception as e:
@@ -2363,8 +2630,15 @@ def payment_callback(advert_id):
             data = response.json()
             
             if data.get('status') and data['data']['status'] == 'success':
-                # Payment successful
+                # Payment successful - Auto-approve and activate advert
                 advert.payment_status = 'paid'
+                advert.status = 'active'  # Auto-approve and activate
+                advert.approved_at = datetime.utcnow()
+                
+                # Set start and end dates based on weeks
+                advert.start_date = datetime.utcnow()
+                advert.end_date = datetime.utcnow() + timedelta(weeks=advert.weeks)
+                
                 db.session.commit()
                 
                 # Send payment confirmation email
@@ -2373,13 +2647,13 @@ def payment_callback(advert_id):
                 except Exception as e:
                     print(f"Error sending payment confirmation email: {e}")
                 
-                flash('Payment successful! Your advert payment has been confirmed. Check your email for confirmation.', 'success')
+                flash(f'Payment successful! Your advert is now active and will run for {advert.weeks} week(s) until {advert.end_date.strftime("%B %d, %Y")}.', 'success')
                 
                 # Log activity
                 activity = UserActivity(
                     user_id=current_user.id,
                     action='advert_payment',
-                    description=f'Payment received for advert: {advert.title}'
+                    description=f'Payment received and advert activated for {advert.weeks} week(s): {advert.title}'
                 )
                 db.session.add(activity)
                 db.session.commit()
@@ -2461,6 +2735,46 @@ def init_db():
             except Exception as e:
                 print(f"⚠ Migration check failed (this is OK if column already exists): {e}")
             
+            # Migrate: Add weeks, start_date, and end_date columns to adverts table if they don't exist
+            try:
+                with db.engine.connect() as conn:
+                    # Check which columns exist
+                    result = conn.execute(text("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name='adverts' AND column_name IN ('weeks', 'start_date', 'end_date')
+                    """))
+                    existing_columns = [row[0] for row in result]
+                    
+                    # Add weeks column if it doesn't exist
+                    if 'weeks' not in existing_columns:
+                        print("⚠ Migrating adverts table: adding weeks column...")
+                        conn.execute(text("ALTER TABLE adverts ADD COLUMN weeks INTEGER NOT NULL DEFAULT 1"))
+                        conn.commit()
+                        print("✓ Migration complete: weeks column added to adverts")
+                    else:
+                        print("✓ weeks column already exists in adverts")
+                    
+                    # Add start_date column if it doesn't exist
+                    if 'start_date' not in existing_columns:
+                        print("⚠ Migrating adverts table: adding start_date column...")
+                        conn.execute(text("ALTER TABLE adverts ADD COLUMN start_date TIMESTAMP"))
+                        conn.commit()
+                        print("✓ Migration complete: start_date column added to adverts")
+                    else:
+                        print("✓ start_date column already exists in adverts")
+                    
+                    # Add end_date column if it doesn't exist
+                    if 'end_date' not in existing_columns:
+                        print("⚠ Migrating adverts table: adding end_date column...")
+                        conn.execute(text("ALTER TABLE adverts ADD COLUMN end_date TIMESTAMP"))
+                        conn.commit()
+                        print("✓ Migration complete: end_date column added to adverts")
+                    else:
+                        print("✓ end_date column already exists in adverts")
+            except Exception as e:
+                print(f"⚠ Error during adverts migration: {e}")
+            
             # Create default admin if doesn't exist
             admin = Admin.query.filter_by(username='admin').first()
             if not admin:
@@ -2480,12 +2794,12 @@ def init_db():
             # Create default advert pricing
             pricing = AdvertPricing.query.first()
             if not pricing:
-                pricing = AdvertPricing(amount=0.00)
+                pricing = AdvertPricing(amount=500.00)  # Default 500 naira per week
                 db.session.add(pricing)
                 db.session.commit()
-                print("✓ Default advert pricing created: ₦0.00 (Admin can update this)")
+                print("✓ Default advert pricing created: ₦500.00 per week (Admin can update this)")
             else:
-                print(f"✓ Advert pricing: ₦{float(pricing.amount):,.2f}")
+                print(f"✓ Advert pricing: ₦{float(pricing.amount):,.2f} per week")
             
             # Migrate: Add email_verified column to users if it doesn't exist
             try:
