@@ -18,9 +18,17 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import secrets
 from dotenv import load_dotenv
+from imagekitio import ImageKit
 
 # Load environment variables
 load_dotenv()
+
+# ImageKit SDK initialization
+imagekit = ImageKit(
+    private_key='private_XE8zZEDma0ILZDvb4gwdWD2CEWo=',
+    public_key='public_FwDoUWOImuHVjq5Jcac/OARqTyY=',
+    url_endpoint='https://ik.imagekit.io/SMI'
+)
 
 # Configure Flask with explicit static folder for Vercel deployment
 # Get the directory where app.py is located
@@ -78,6 +86,100 @@ def datetime_filter(value, format='%Y-%m-%d'):
         except:
             return value[:10] if len(value) >= 10 else value
     return value
+
+# Helper function to upload image to ImageKit with local fallback
+def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_local=True):
+    """
+    Upload an image file to ImageKit and return the URL.
+    If ImageKit fails and fallback_to_local is True, saves to local filesystem.
+    
+    Args:
+        image_file: Flask FileStorage object from request.files
+        folder_name: Folder name in ImageKit or local storage (default: 'uploads')
+        fallback_to_local: If True, save locally when ImageKit fails
+    
+    Returns:
+        str: Image URL if successful, None if failed
+    """
+    try:
+        # Reset file pointer to beginning
+        image_file.seek(0)
+        file_content = image_file.read()
+        image_file.seek(0)  # Reset again for potential local save
+        
+        # Generate unique filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        original_filename = secure_filename(image_file.filename)
+        file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
+        unique_filename = f"{timestamp}_{secrets.token_hex(8)}.{file_extension}"
+        
+        # Try ImageKit first
+        try:
+            upload_response = imagekit.upload_file(
+                file=file_content,
+                file_name=unique_filename,
+                options={
+                    "folder": folder_name
+                }
+            )
+            
+            # Return the URL - response format may vary
+            if upload_response:
+                # If response is a dict, try to get URL
+                if isinstance(upload_response, dict):
+                    if 'url' in upload_response:
+                        print(f"ImageKit upload successful: {upload_response['url']}")
+                        return upload_response['url']
+                    # Check if response is nested
+                    elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
+                        print(f"ImageKit upload successful: {upload_response['response_metadata']['url']}")
+                        return upload_response['response_metadata']['url']
+                    elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
+                        print(f"ImageKit upload successful: {upload_response['response']['url']}")
+                        return upload_response['response']['url']
+                # If response has url attribute
+                elif hasattr(upload_response, 'url'):
+                    print(f"ImageKit upload successful: {upload_response.url}")
+                    return upload_response.url
+        
+        except Exception as e:
+            print(f"ImageKit upload failed: {e}")
+        
+        # ImageKit failed or returned None, fallback to local storage if enabled
+        if fallback_to_local:
+            try:
+                # Map folder names to local directories
+                folder_map = {
+                    'posts': 'posts',
+                    'adverts': 'adverts',
+                    'profiles': 'profiles',
+                    'uploads': 'uploads'
+                }
+                local_folder = folder_map.get(folder_name, 'uploads')
+                
+                # Create upload directory if it doesn't exist
+                upload_folder = os.path.join(app.root_path, 'static', 'images', local_folder)
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                # Save file locally
+                filepath = os.path.join(upload_folder, unique_filename)
+                image_file.save(filepath)
+                
+                # Return local URL
+                local_url = url_for('static', filename=f'images/{local_folder}/{unique_filename}')
+                print(f"Image saved locally: {local_url}")
+                return local_url
+                
+            except Exception as e:
+                print(f"Local file save also failed: {e}")
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error in upload_image_to_imagekit: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # SQLAlchemy Models
 class User(UserMixin, db.Model):
@@ -259,6 +361,8 @@ APP_URL = os.environ.get('APP_URL', 'http://127.0.0.1:5000')
 # Paystack Configuration
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
+if not PAYSTACK_SECRET_KEY:
+    print("⚠ WARNING: PAYSTACK_SECRET_KEY not set in environment. Payment features will not work.")
 
 def send_email(to_email, subject, html_body, text_body=None):
     """Send email using SMTP with improved error handling"""
@@ -1407,18 +1511,12 @@ def profile():
                 allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
                 filename = secure_filename(profile_file.filename)
                 if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Create profiles directory if it doesn't exist
-                    upload_folder = os.path.join(app.root_path, 'static', 'images', 'profiles')
-                    os.makedirs(upload_folder, exist_ok=True)
-                    
-                    # Generate unique filename
-                    timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-                    filename = f"{timestamp}_{current_user.id}_{filename}"
-                    filepath = os.path.join(upload_folder, filename)
-                    
-                    # Save file
-                    profile_file.save(filepath)
-                    profile_picture_url = url_for('static', filename=f'images/profiles/{filename}')
+                    # Upload to ImageKit
+                    uploaded_url = upload_image_to_imagekit(profile_file, folder_name='profiles')
+                    if uploaded_url:
+                        profile_picture_url = uploaded_url
+                    else:
+                        flash('Failed to upload profile picture. Please try again or use an image URL.', 'warning')
         
         # Handle profile picture URL input
         profile_url_input = request.form.get('profile_picture_url', '').strip()
@@ -1522,7 +1620,7 @@ def admin_dashboard():
     total_adverts = Advert.query.count()
     pending_adverts = Advert.query.filter_by(status='pending').count()
     
-    recent_activities = UserActivity.query.order_by(UserActivity.timestamp.desc()).limit(20).all()
+    recent_activities = UserActivity.query.order_by(UserActivity.timestamp.desc()).limit(4).all()
     recent_users = User.query.order_by(User.created_at.desc()).limit(10).all()
     
     return render_template('admin_dashboard.html',
@@ -1725,18 +1823,10 @@ def create_post():
                     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
                     filename = secure_filename(image_file.filename)
                     if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                        # Create posts directory if it doesn't exist
-                        upload_folder = os.path.join(app.root_path, 'static', 'images', 'posts')
-                        os.makedirs(upload_folder, exist_ok=True)
-                        
-                        # Generate unique filename
-                        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-                        filename = f"{timestamp}_{current_user.id}_{filename}"
-                        filepath = os.path.join(upload_folder, filename)
-                        
-                        # Save file
-                        image_file.save(filepath)
-                        final_image_url = url_for('static', filename=f'images/posts/{filename}')
+                        # Upload to ImageKit
+                        final_image_url = upload_image_to_imagekit(image_file, folder_name='posts')
+                        if not final_image_url:
+                            flash('Failed to upload image. Please try again or use an image URL.', 'warning')
             
             # If no file upload, use URL if provided
             if not final_image_url and image_url:
@@ -1859,8 +1949,8 @@ def edit_post(post_id):
     try:
         post = BlogPost.query.get_or_404(post_id)
         
-        # Check if user is the author or admin
-        if current_user.__class__.__name__ != 'Admin' and post.author_id != current_user.id:
+        # Check if user is the author (admins cannot edit user posts)
+        if post.author_id != current_user.id:
             flash('You do not have permission to edit this post.', 'danger')
             return redirect(url_for('post_detail', post_id=post_id))
         
@@ -1889,18 +1979,12 @@ def edit_post(post_id):
                         allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
                         filename = secure_filename(image_file.filename)
                         if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                            # Create posts directory if it doesn't exist
-                            upload_folder = os.path.join(app.root_path, 'static', 'images', 'posts')
-                            os.makedirs(upload_folder, exist_ok=True)
-                            
-                            # Generate unique filename
-                            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-                            filename = f"{timestamp}_{current_user.id}_{filename}"
-                            filepath = os.path.join(upload_folder, filename)
-                            
-                            # Save file
-                            image_file.save(filepath)
-                            final_image_url = url_for('static', filename=f'images/posts/{filename}')
+                            # Upload to ImageKit
+                            uploaded_url = upload_image_to_imagekit(image_file, folder_name='posts')
+                            if uploaded_url:
+                                final_image_url = uploaded_url
+                            else:
+                                flash('Failed to upload image. Keeping existing image.', 'warning')
                 
                 # If no file upload, use URL if provided (or keep existing)
                 if 'image_file' not in request.files or not request.files['image_file'].filename:
@@ -2010,22 +2094,14 @@ def submit_advert():
         if 'image_file' in request.files:
             file = request.files['image_file']
             if file and file.filename:
-                filename = file.filename
                 allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                filename = secure_filename(file.filename)
                 
                 if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Save uploaded file
-                    upload_folder = os.path.join(app.root_path, 'static', 'images', 'adverts')
-                    os.makedirs(upload_folder, exist_ok=True)
-                    
-                    # Generate unique filename
-                    filename = secure_filename(filename)
-                    filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
-                    filepath = os.path.join(upload_folder, filename)
-                    file.save(filepath)
-                    
-                    # Set image URL to the saved file path
-                    image_url = url_for('static', filename=f'images/adverts/{filename}')
+                    # Upload to ImageKit
+                    image_url = upload_image_to_imagekit(file, folder_name='adverts')
+                    if not image_url:
+                        flash('Failed to upload image. Please try again or use an image URL.', 'warning')
                 else:
                     flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
                     return render_template('submit_advert.html', price_per_week=price_per_week)
@@ -2061,8 +2137,9 @@ def submit_advert():
         db.session.add(activity)
         db.session.commit()
         
-        flash(f'Advert submitted successfully! Payment required: ₦{total_amount:,.2f} for {weeks} week(s). After payment, your advert will automatically start running.', 'success')
-        return redirect(url_for('my_adverts'))
+        # Redirect directly to payment page
+        flash(f'Please complete payment of ₦{total_amount:,.2f} to activate your advert for {weeks} week(s).', 'info')
+        return redirect(url_for('pay_advert', advert_id=advert.id))
     
     return render_template('submit_advert.html', price_per_week=price_per_week)
 
@@ -2112,6 +2189,112 @@ def my_adverts():
     adverts = Advert.query.filter_by(submitted_by=current_user.id).order_by(Advert.submitted_at.desc()).all()
     return render_template('my_adverts.html', adverts=adverts)
 
+@app.route('/advert/<int:advert_id>')
+def advert_detail(advert_id):
+    """View full advert details - public page"""
+    advert = Advert.query.get_or_404(advert_id)
+    
+    # Only show active or approved adverts to public
+    if advert.status not in ['active', 'approved']:
+        if current_user.is_authenticated and current_user.id == advert.submitted_by:
+            # Allow owner to see their own adverts in any status
+            pass
+        else:
+            flash('This advertisement is not currently active.', 'warning')
+            return redirect(url_for('index'))
+    
+    # Get related adverts (other active adverts from the same user)
+    related_adverts = Advert.query.filter(
+        Advert.id != advert.id,
+        Advert.submitted_by == advert.submitted_by,
+        Advert.status.in_(['active', 'approved'])
+    ).limit(3).all()
+    
+    return render_template('advert_detail.html', advert=advert, related_adverts=related_adverts)
+
+@app.route('/advert/<int:advert_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_advert(advert_id):
+    """Edit advert - users can edit their own adverts"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('my_adverts'))
+    
+    advert = Advert.query.get_or_404(advert_id)
+    
+    # Check if user owns this advert
+    if advert.submitted_by != current_user.id:
+        flash('You do not have permission to edit this advert.', 'danger')
+        return redirect(url_for('my_adverts'))
+    
+    # Get advert pricing
+    pricing = AdvertPricing.query.first()
+    price_per_week = float(pricing.amount) if pricing else 500.00
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        link_url = request.form.get('link_url', '').strip()
+        button_text = request.form.get('button_text', 'Learn More').strip()
+        image_url_input = request.form.get('image_url', '').strip()
+        
+        if not title:
+            flash('Title is required.', 'danger')
+            return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
+        
+        try:
+            # Handle image upload or URL
+            image_url = None
+            
+            # Check if image file was uploaded
+            if 'image_file' in request.files:
+                file = request.files['image_file']
+                if file and file.filename:
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(file.filename)
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Upload to ImageKit
+                        image_url = upload_image_to_imagekit(file, folder_name='adverts')
+                        if not image_url:
+                            flash('Failed to upload image. Please try again or use an image URL.', 'warning')
+                    else:
+                        flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
+                        return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
+            
+            # If no file upload, use URL if provided
+            if not image_url and image_url_input:
+                image_url = image_url_input
+            
+            # Update advert
+            advert.title = title
+            advert.description = description if description else None
+            if image_url:
+                advert.image_url = image_url
+            advert.link_url = link_url if link_url else None
+            advert.button_text = button_text if button_text else 'Learn More'
+            
+            db.session.commit()
+            
+            # Log activity
+            activity = UserActivity(
+                user_id=current_user.id,
+                action='edit_advert',
+                description=f'User {current_user.username} edited advert: {title}'
+            )
+            db.session.add(activity)
+            db.session.commit()
+            
+            flash('Advert updated successfully!', 'success')
+            return redirect(url_for('my_adverts'))
+        
+        except Exception as e:
+            print(f"Error updating advert: {e}")
+            db.session.rollback()
+            flash('An error occurred while updating the advert. Please try again.', 'danger')
+    
+    return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
+
 @app.route('/admin/adverts')
 @admin_required
 def admin_adverts():
@@ -2121,6 +2304,84 @@ def admin_adverts():
     
     adverts = Advert.query.order_by(Advert.submitted_at.desc()).all()
     return render_template('admin_adverts.html', adverts=adverts)
+
+@app.route('/admin/advert/<int:advert_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_advert(advert_id):
+    """Admin - Edit any advert"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_adverts'))
+    
+    advert = Advert.query.get_or_404(advert_id)
+    
+    # Get advert pricing
+    pricing = AdvertPricing.query.first()
+    price_per_week = float(pricing.amount) if pricing else 500.00
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        link_url = request.form.get('link_url', '').strip()
+        button_text = request.form.get('button_text', 'Learn More').strip()
+        image_url_input = request.form.get('image_url', '').strip()
+        
+        if not title:
+            flash('Title is required.', 'danger')
+            return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
+        
+        try:
+            # Handle image upload or URL
+            image_url = None
+            
+            # Check if image file was uploaded
+            if 'image_file' in request.files:
+                file = request.files['image_file']
+                if file and file.filename:
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(file.filename)
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Upload to ImageKit
+                        image_url = upload_image_to_imagekit(file, folder_name='adverts')
+                        if not image_url:
+                            flash('Failed to upload image. Please try again or use an image URL.', 'warning')
+                    else:
+                        flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
+                        return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
+            
+            # If no file upload, use URL if provided
+            if not image_url and image_url_input:
+                image_url = image_url_input
+            
+            # Update advert
+            advert.title = title
+            advert.description = description if description else None
+            if image_url:
+                advert.image_url = image_url
+            advert.link_url = link_url if link_url else None
+            advert.button_text = button_text if button_text else 'Learn More'
+            
+            db.session.commit()
+            
+            # Log activity
+            activity = UserActivity(
+                user_id=advert.submitted_by,
+                action='advert_edited_by_admin',
+                description=f'Admin edited advert: {title}'
+            )
+            db.session.add(activity)
+            db.session.commit()
+            
+            flash('Advert updated successfully!', 'success')
+            return redirect(url_for('admin_adverts'))
+        
+        except Exception as e:
+            print(f"Error updating advert: {e}")
+            db.session.rollback()
+            flash('An error occurred while updating the advert. Please try again.', 'danger')
+    
+    return render_template('edit_advert.html', advert=advert, price_per_week=price_per_week)
 
 @app.route('/admin/advert/<int:advert_id>/approve', methods=['POST'])
 @admin_required
@@ -2309,20 +2570,41 @@ def create_advert():
                 users = User.query.filter_by(is_active=True).order_by(User.username).all()
                 return render_template('admin_create_advert.html', users=users)
             
-            # Handle image URL only (file uploads disabled on Vercel - read-only file system)
-            image_url_input = request.form.get('image_url', '').strip()
-            if not image_url_input:
-                flash('Image URL is required. Please provide a URL to the image.', 'danger')
-                users = User.query.filter_by(is_active=True).order_by(User.username).all()
-                return render_template('admin_create_advert.html', users=users)
+            # Handle image upload or URL
+            image_url = None
             
-            image_url = image_url_input
+            # Check if image file was uploaded
+            if 'image_file' in request.files:
+                file = request.files['image_file']
+                if file and file.filename:
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(file.filename)
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Upload to ImageKit
+                        image_url = upload_image_to_imagekit(file, folder_name='adverts')
+                        if not image_url:
+                            flash('Failed to upload image. Please try again or use an image URL.', 'warning')
+                    else:
+                        flash('Invalid image file type. Please upload PNG, JPG, JPEG, GIF, or WEBP.', 'danger')
+                        users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                        return render_template('admin_create_advert.html', users=users)
             
-            # Validate URL format
-            if not image_url.startswith(('http://', 'https://')):
-                flash('Please provide a valid image URL starting with http:// or https://', 'danger')
-                users = User.query.filter_by(is_active=True).order_by(User.username).all()
-                return render_template('admin_create_advert.html', users=users)
+            # If no file upload, check for image URL
+            if not image_url:
+                image_url_input = request.form.get('image_url', '').strip()
+                if not image_url_input:
+                    flash('Please upload an image or provide an image URL.', 'danger')
+                    users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                    return render_template('admin_create_advert.html', users=users)
+                
+                image_url = image_url_input
+                
+                # Validate URL format
+                if not image_url.startswith(('http://', 'https://')):
+                    flash('Please provide a valid image URL starting with http:// or https://', 'danger')
+                    users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                    return render_template('admin_create_advert.html', users=users)
             
             # Get weeks (default 1)
             weeks = request.form.get('weeks', type=int) or 1
@@ -2488,18 +2770,10 @@ def admin_create_post():
                     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
                     filename = secure_filename(image_file.filename)
                     if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                        # Create posts directory if it doesn't exist
-                        upload_folder = os.path.join(app.root_path, 'static', 'images', 'posts')
-                        os.makedirs(upload_folder, exist_ok=True)
-                        
-                        # Generate unique filename
-                        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-                        filename = f"{timestamp}_admin_{admin_user.id}_{filename}"
-                        filepath = os.path.join(upload_folder, filename)
-                        
-                        # Save file
-                        image_file.save(filepath)
-                        final_image_url = url_for('static', filename=f'images/posts/{filename}')
+                        # Upload to ImageKit
+                        final_image_url = upload_image_to_imagekit(image_file, folder_name='posts')
+                        if not final_image_url:
+                            flash('Failed to upload image. Please try again or use an image URL.', 'warning')
             
             # If no file upload, use URL if provided
             if not final_image_url and image_url:
@@ -2581,7 +2855,7 @@ def admin_advert_pricing():
 @app.route('/advert/<int:advert_id>/pay', methods=['GET', 'POST'])
 @login_required
 def pay_advert(advert_id):
-    """Pay for advert using Paystack"""
+    """Pay for advert using Paystack - auto-initiates payment"""
     advert = Advert.query.get_or_404(advert_id)
     
     # Verify user owns the advert
@@ -2594,48 +2868,49 @@ def pay_advert(advert_id):
         flash('This advert has already been paid for.', 'info')
         return redirect(url_for('my_adverts'))
     
-    if request.method == 'POST':
-        # Initialize Paystack payment
-        amount_in_kobo = int(float(advert.amount) * 100)  # Convert to kobo (Paystack currency)
-        email = current_user.email
-        reference = f"ADV_{advert.id}_{int(datetime.utcnow().timestamp())}"
-        
-        # Create Paystack payment initialization
-        headers = {
-            'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
-            'Content-Type': 'application/json'
-        }
-        
-        payload = {
-            'amount': amount_in_kobo,
-            'email': email,
-            'reference': reference,
-            'callback_url': f"{APP_URL}/advert/{advert_id}/payment-callback",
-            'metadata': {
-                'advert_id': advert.id,
-                'user_id': current_user.id
-            }
-        }
-        
-        try:
-            response = requests.post('https://api.paystack.co/transaction/initialize', 
-                                    json=payload, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status'):
-                    authorization_url = data['data']['authorization_url']
-                    # Store reference in session
-                    session['payment_reference'] = reference
-                    return redirect(authorization_url)
-                else:
-                    flash('Payment initialization failed. Please try again.', 'danger')
-            else:
-                flash('Error initializing payment. Please try again.', 'danger')
-        except Exception as e:
-            print(f"Paystack error: {e}")
-            flash('Payment service unavailable. Please try again later.', 'danger')
+    # Auto-initiate Paystack payment (both GET and POST)
+    # Initialize Paystack payment
+    amount_in_kobo = int(float(advert.amount) * 100)  # Convert to kobo (Paystack currency)
+    email = current_user.email
+    reference = f"ADV_{advert.id}_{int(datetime.utcnow().timestamp())}"
     
+    # Create Paystack payment initialization
+    headers = {
+        'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
+        'Content-Type': 'application/json'
+    }
+    
+    payload = {
+        'amount': amount_in_kobo,
+        'email': email,
+        'reference': reference,
+        'callback_url': f"{APP_URL}/advert/{advert_id}/payment-callback",
+        'metadata': {
+            'advert_id': advert.id,
+            'user_id': current_user.id
+        }
+    }
+    
+    try:
+        response = requests.post('https://api.paystack.co/transaction/initialize', 
+                                json=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status'):
+                authorization_url = data['data']['authorization_url']
+                # Store reference in session
+                session['payment_reference'] = reference
+                return redirect(authorization_url)
+            else:
+                flash('Payment initialization failed. Please try again.', 'danger')
+        else:
+            flash('Error initializing payment. Please try again.', 'danger')
+    except Exception as e:
+        print(f"Paystack error: {e}")
+        flash('Payment service unavailable. Please try again later.', 'danger')
+    
+    # If payment initialization failed, show fallback page
     return render_template('pay_advert.html', advert=advert, paystack_public_key=PAYSTACK_PUBLIC_KEY)
 
 @app.route('/advert/<int:advert_id>/payment-callback')
