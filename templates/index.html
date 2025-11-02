@@ -40,77 +40,92 @@
 
 <!-- Adverts Carousel Section -->
 {% if approved_adverts %}
-<section class="py-8 bg-gray-100">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Featured Advertisements</h2>
-        <div class="relative overflow-hidden">
-            <div id="adverts-carousel" class="flex transition-transform duration-500 ease-in-out">
-                {% for advert in approved_adverts %}
-                <div class="min-w-full flex-shrink-0 px-3 sm:px-4">
-                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                        <div class="flex flex-col md:flex-row items-start md:items-center p-4 sm:p-6 md:p-8 min-h-[200px]">
-                            {% if advert.image_url %}
-                            <div class="flex-shrink-0 mb-4 md:mb-0 md:mr-6 w-full md:w-auto flex justify-center md:justify-start">
-                                <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-32 h-32 md:w-40 md:h-40 object-cover rounded-lg border-2 border-gray-200">
-                            </div>
-                            {% endif %}
-                            <div class="flex-1 min-w-0 w-full">
-                                <h3 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-3">{{ advert.title }}</h3>
-                                {% if advert.description %}
-                                <div class="text-gray-600 mb-4 text-sm md:text-base leading-relaxed">
-                                    {% set desc_length = advert.description|length %}
-                                    <div id="advert-description-short-{{ advert.id }}" {% if desc_length > 150 %}class="line-clamp-3"{% endif %}>
-                                        {{ advert.description }}
-                                    </div>
-                                    {% if desc_length > 150 %}
-                                    <div id="advert-description-full-{{ advert.id }}" class="hidden">
-                                        {{ advert.description }}
-                                    </div>
-                                    <button type="button"
-                                            onclick="toggleDescription({{ advert.id }}); return false;"
-                                            id="read-more-btn-{{ advert.id }}"
-                                            class="text-green-600 hover:text-green-800 font-semibold text-sm mt-2 underline cursor-pointer">
-                                        Read more
-                                    </button>
-                                    {% endif %}
+<section class="py-10 sm:py-12 bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-6 sm:mb-8">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Featured Advertisements</h2>
+            <p class="text-sm sm:text-base text-gray-600">Discover opportunities from our partners</p>
+        </div>
+        
+        <div class="relative" id="carousel-container">
+            <!-- Carousel Container -->
+            <div class="overflow-hidden rounded-2xl shadow-2xl">
+                <div id="adverts-carousel" class="flex transition-transform duration-500 ease-in-out" style="width: 100%;">
+                    {% for advert in approved_adverts %}
+                    <div class="min-w-full flex-shrink-0" style="width: 100%;">
+                        <div class="bg-white mx-2 sm:mx-4 rounded-xl overflow-hidden">
+                            <div class="flex flex-col md:flex-row items-center md:items-start p-6 sm:p-8 md:p-10">
+                                {% if advert.image_url %}
+                                <div class="flex-shrink-0 mb-6 md:mb-0 md:mr-8 w-full md:w-auto flex justify-center">
+                                    <img src="{{ advert.image_url }}" alt="{{ advert.title }}" 
+                                         class="w-40 h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 object-cover rounded-xl shadow-lg border-4 border-gray-100">
                                 </div>
                                 {% endif %}
-                                <div class="flex flex-col sm:flex-row gap-3">
-                                    <a href="{{ url_for('advert_detail', advert_id=advert.id) }}" 
-                                       class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
-                                        View Full Details
-                                    </a>
-                                    {% if advert.link_url %}
-                                    <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
-                                       class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
-                                        {{ advert.button_text or 'Learn More' }}
-                                    </a>
+                                <div class="flex-1 text-center md:text-left">
+                                    <h3 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">{{ advert.title }}</h3>
+                                    {% if advert.description %}
+                                    <div class="text-gray-700 mb-6 text-base sm:text-lg leading-relaxed">
+                                        {% set desc_length = advert.description|length %}
+                                        <div id="advert-description-short-{{ advert.id }}" {% if desc_length > 200 %}class="line-clamp-4"{% endif %}>
+                                            {{ advert.description }}
+                                        </div>
+                                        {% if desc_length > 200 %}
+                                        <div id="advert-description-full-{{ advert.id }}" class="hidden">
+                                            {{ advert.description }}
+                                        </div>
+                                        <button type="button"
+                                                onclick="toggleDescription({{ advert.id }}); return false;"
+                                                id="read-more-btn-{{ advert.id }}"
+                                                class="text-green-600 hover:text-green-800 font-semibold text-sm mt-3 underline cursor-pointer">
+                                            Read more
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                     {% endif %}
+                                    <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                                        <a href="{{ url_for('advert_detail', advert_id=advert.id) }}" 
+                                           class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold transition text-center shadow-lg hover:shadow-xl active:scale-95 text-sm sm:text-base">
+                                            View Full Details
+                                        </a>
+                                        {% if advert.link_url %}
+                                        <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                                           class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold transition text-center shadow-lg hover:shadow-xl active:scale-95 text-sm sm:text-base">
+                                            {{ advert.button_text or 'Learn More' }}
+                                        </a>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
+            
+            <!-- Navigation Buttons -->
             {% if approved_adverts|length > 1 %}
-            <button id="prev-advert" class="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 sm:p-3 shadow-lg hover:bg-gray-100 transition z-10">
+            <button id="prev-advert" class="absolute left-0 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-3 sm:p-4 shadow-xl hover:bg-gray-50 hover:scale-110 transition z-10 border-2 border-gray-100">
                 <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
-            <button id="next-advert" class="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 sm:p-3 shadow-lg hover:bg-gray-100 transition z-10">
+            <button id="next-advert" class="absolute right-0 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-3 sm:p-4 shadow-xl hover:bg-gray-50 hover:scale-110 transition z-10 border-2 border-gray-100">
                 <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </button>
             {% endif %}
         </div>
-        <div class="flex justify-center mt-4 space-x-2">
+        
+        <!-- Indicators -->
+        {% if approved_adverts|length > 1 %}
+        <div class="flex justify-center mt-6 space-x-3">
             {% for i in range(approved_adverts|length) %}
-            <button class="advert-indicator w-2 h-2 rounded-full bg-gray-400 transition {% if i == 0 %}bg-green-600{% endif %}" data-index="{{ i }}"></button>
+            <button class="advert-indicator w-3 h-3 rounded-full bg-gray-300 hover:bg-gray-400 transition-all duration-300 {% if i == 0 %}bg-green-600 w-8{% endif %}" 
+                    data-index="{{ i }}"></button>
             {% endfor %}
         </div>
+        {% endif %}
     </div>
 </section>
 {% endif %}
@@ -394,33 +409,92 @@ window.toggleDescription = toggleDescription;
 let currentAdvertIndex = 0;
 const adverts = document.querySelectorAll('#adverts-carousel > div');
 const totalAdverts = adverts.length;
+let autoRotateInterval = null;
 
 function showAdvert(index) {
+    if (index < 0 || index >= totalAdverts) return;
+    
+    currentAdvertIndex = index;
     const carousel = document.getElementById('adverts-carousel');
-    carousel.style.transform = `translateX(-${index * 100}%)`;
+    if (carousel) {
+        carousel.style.transform = `translateX(-${index * 100}%)`;
+    }
     
     // Update indicators
     document.querySelectorAll('.advert-indicator').forEach((ind, i) => {
-        ind.classList.toggle('bg-green-600', i === index);
-        ind.classList.toggle('bg-gray-400', i !== index);
+        if (i === index) {
+            ind.classList.remove('bg-gray-300', 'w-3');
+            ind.classList.add('bg-green-600', 'w-8');
+        } else {
+            ind.classList.remove('bg-green-600', 'w-8');
+            ind.classList.add('bg-gray-300', 'w-3');
+        }
     });
 }
 
-document.getElementById('next-advert')?.addEventListener('click', () => {
-    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
-    showAdvert(currentAdvertIndex);
-});
+// Navigation buttons
+const nextButton = document.getElementById('next-advert');
+const prevButton = document.getElementById('prev-advert');
 
-document.getElementById('prev-advert')?.addEventListener('click', () => {
-    currentAdvertIndex = (currentAdvertIndex - 1 + totalAdverts) % totalAdverts;
-    showAdvert(currentAdvertIndex);
+if (nextButton) {
+    nextButton.addEventListener('click', () => {
+        currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+        showAdvert(currentAdvertIndex);
+        resetAutoRotate();
+    });
+}
+
+if (prevButton) {
+    prevButton.addEventListener('click', () => {
+        currentAdvertIndex = (currentAdvertIndex - 1 + totalAdverts) % totalAdverts;
+        showAdvert(currentAdvertIndex);
+        resetAutoRotate();
+    });
+}
+
+// Indicator click handlers
+document.querySelectorAll('.advert-indicator').forEach((indicator, i) => {
+    indicator.addEventListener('click', () => {
+        showAdvert(i);
+        resetAutoRotate();
+    });
 });
 
 // Auto-rotate carousel
-setInterval(() => {
-    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
-    showAdvert(currentAdvertIndex);
-}, 5000); // Change every 5 seconds
+function startAutoRotate() {
+    autoRotateInterval = setInterval(() => {
+        currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+        showAdvert(currentAdvertIndex);
+    }, 6000); // Change every 6 seconds
+}
+
+function resetAutoRotate() {
+    if (autoRotateInterval) {
+        clearInterval(autoRotateInterval);
+    }
+    startAutoRotate();
+}
+
+// Start auto-rotate
+startAutoRotate();
+
+// Pause on hover
+const carouselContainer = document.getElementById('carousel-container');
+if (carouselContainer) {
+    carouselContainer.addEventListener('mouseenter', () => {
+        if (autoRotateInterval) {
+            clearInterval(autoRotateInterval);
+        }
+    });
+    
+    carouselContainer.addEventListener('mouseleave', () => {
+        startAutoRotate();
+    });
+}
+
+// Make showAdvert available globally for onclick handlers
+window.showAdvert = showAdvert;
+window.currentAdvertIndex = currentAdvertIndex;
 {% endif %}
 
 // Set up event listeners for read more buttons using event delegation
