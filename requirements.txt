@@ -10,3 +10,4 @@ beautifulsoup4==4.12.2
 python-socketio==5.10.0
 eventlet==0.33.3
 python-dotenv==1.0.0
+imagekitio==4.2.0
