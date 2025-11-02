@@ -24,11 +24,21 @@ from imagekitio import ImageKit
 load_dotenv()
 
 # ImageKit SDK initialization
-imagekit = ImageKit(
-    private_key='private_XE8zZEDma0ILZDvb4gwdWD2CEWo=',
-    public_key='public_FwDoUWOImuHVjq5Jcac/OARqTyY=',
-    url_endpoint='https://ik.imagekit.io/SMI'
-)
+# Use environment variables if available, otherwise fallback to hardcoded credentials
+IMAGEKIT_PRIVATE_KEY = os.environ.get('IMAGEKIT_PRIVATE_KEY', 'private_XE8zZEDma0ILZDvb4gwdWD2CEWo=')
+IMAGEKIT_PUBLIC_KEY = os.environ.get('IMAGEKIT_PUBLIC_KEY', 'public_FwDoUWOImuHVjq5Jcac/OARqTyY=')
+IMAGEKIT_URL_ENDPOINT = os.environ.get('IMAGEKIT_URL_ENDPOINT', 'https://ik.imagekit.io/SMI')
+
+try:
+    imagekit = ImageKit(
+        private_key=IMAGEKIT_PRIVATE_KEY,
+        public_key=IMAGEKIT_PUBLIC_KEY,
+        url_endpoint=IMAGEKIT_URL_ENDPOINT
+    )
+    print("✓ ImageKit initialized successfully")
+except Exception as e:
+    print(f"⚠ ImageKit initialization error: {e}")
+    imagekit = None
 
 # Configure Flask with explicit static folder for Vercel deployment
 # Get the directory where app.py is located
@@ -113,37 +123,49 @@ def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_loca
         file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
         unique_filename = f"{timestamp}_{secrets.token_hex(8)}.{file_extension}"
         
-        # Try ImageKit first
-        try:
-            upload_response = imagekit.upload_file(
-                file=file_content,
-                file_name=unique_filename,
-                options={
-                    "folder": folder_name
-                }
-            )
+        # Try ImageKit first (if initialized)
+        if imagekit:
+            try:
+                upload_response = imagekit.upload_file(
+                    file=file_content,
+                    file_name=unique_filename,
+                    options={
+                        "folder": folder_name
+                    }
+                )
+                
+                # Return the URL - response format may vary
+                if upload_response:
+                    # If response is a dict, try to get URL
+                    if isinstance(upload_response, dict):
+                        if 'url' in upload_response:
+                            print(f"ImageKit upload successful: {upload_response['url']}")
+                            return upload_response['url']
+                        # Check if response is nested
+                        elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
+                            print(f"ImageKit upload successful: {upload_response['response_metadata']['url']}")
+                            return upload_response['response_metadata']['url']
+                        elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
+                            print(f"ImageKit upload successful: {upload_response['response']['url']}")
+                            return upload_response['response']['url']
+                        # Additional check for nested structures
+                        elif 'data' in upload_response and isinstance(upload_response['data'], dict) and 'url' in upload_response['data']:
+                            print(f"ImageKit upload successful: {upload_response['data']['url']}")
+                            return upload_response['data']['url']
+                    # If response has url attribute
+                    elif hasattr(upload_response, 'url'):
+                        print(f"ImageKit upload successful: {upload_response.url}")
+                        return upload_response.url
+                    else:
+                        print(f"ImageKit upload returned unexpected format: {type(upload_response)}")
+                        print(f"Response: {upload_response}")
             
-            # Return the URL - response format may vary
-            if upload_response:
-                # If response is a dict, try to get URL
-                if isinstance(upload_response, dict):
-                    if 'url' in upload_response:
-                        print(f"ImageKit upload successful: {upload_response['url']}")
-                        return upload_response['url']
-                    # Check if response is nested
-                    elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
-                        print(f"ImageKit upload successful: {upload_response['response_metadata']['url']}")
-                        return upload_response['response_metadata']['url']
-                    elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
-                        print(f"ImageKit upload successful: {upload_response['response']['url']}")
-                        return upload_response['response']['url']
-                # If response has url attribute
-                elif hasattr(upload_response, 'url'):
-                    print(f"ImageKit upload successful: {upload_response.url}")
-                    return upload_response.url
-        
-        except Exception as e:
-            print(f"ImageKit upload failed: {e}")
+            except Exception as e:
+                print(f"ImageKit upload failed: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("ImageKit not initialized, skipping upload")
         
         # ImageKit failed or returned None, fallback to local storage if enabled
         if fallback_to_local:

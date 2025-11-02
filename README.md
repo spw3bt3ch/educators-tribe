@@ -38,15 +38,39 @@ pip install -r requirements.txt
 
 ## Configuration
 
-The application uses SQLite by default. For production, you should:
-- Set the `SECRET_KEY` environment variable
-- Set the `DATABASE_URL` environment variable for your database
+The application uses PostgreSQL by default (configured for production). For production, you should set environment variables:
 
-Example:
+### Environment Variables
+
+**Required:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `SECRET_KEY` - Flask secret key for sessions
+
+**Optional:**
+- `IMAGEKIT_PRIVATE_KEY` - ImageKit private key for image uploads (defaults to hardcoded value)
+- `IMAGEKIT_PUBLIC_KEY` - ImageKit public key
+- `IMAGEKIT_URL_ENDPOINT` - ImageKit URL endpoint
+
+Example (local development):
 ```bash
 export SECRET_KEY='your-secret-key-here'
-export DATABASE_URL='sqlite:///nigerian_teachers_blog.db'
+export DATABASE_URL='postgresql://user:pass@host:port/db'
 ```
+
+### Vercel Deployment
+
+The application is configured to deploy on Vercel. After deploying, set these environment variables in the Vercel dashboard:
+
+1. Go to your project in Vercel
+2. Navigate to Settings > Environment Variables
+3. Add the following variables:
+   - `DATABASE_URL` - Your PostgreSQL connection string
+   - `SECRET_KEY` - A secure random string
+   - `IMAGEKIT_PRIVATE_KEY` - Your ImageKit private key (if different from default)
+   - `IMAGEKIT_PUBLIC_KEY` - Your ImageKit public key (if different from default)
+   - `IMAGEKIT_URL_ENDPOINT` - Your ImageKit URL endpoint (if different from default)
+
+**Note:** The ImageKit credentials are already configured in the code. If you want to use your own ImageKit account, update the environment variables.
 
 ## Running the Application
 
