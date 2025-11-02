@@ -1811,13 +1811,15 @@ def blog():
 @app.route('/blog/create', methods=['GET', 'POST'])
 @login_required
 def create_post():
-    """Create a new blog post"""
+    """Create a new blog post - Regular users only (admins use /admin/post/create)"""
     if not db_connected:
         flash('Database not available. Please try again later.', 'danger')
         return redirect(url_for('index'))
     
+    # Admins cannot create posts here - they must use the admin_create_post route
+    # because BlogPost.author_id references users.id, not admins.id
     if current_user.__class__.__name__ == 'Admin':
-        flash('Admins cannot create blog posts.', 'warning')
+        flash('Admins should use the admin dashboard to create posts.', 'warning')
         return redirect(url_for('blog'))
     
     if request.method == 'POST':
@@ -1963,18 +1965,13 @@ def add_comment(post_id):
 @app.route('/blog/post/<int:post_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_post(post_id):
-    """Edit a blog post"""
+    """Edit a blog post - All users and admins can edit any post"""
     if not db_connected:
         flash('Database not available. Please try again later.', 'danger')
         return redirect(url_for('index'))
     
     try:
         post = BlogPost.query.get_or_404(post_id)
-        
-        # Check if user is the author (admins cannot edit user posts)
-        if post.author_id != current_user.id:
-            flash('You do not have permission to edit this post.', 'danger')
-            return redirect(url_for('post_detail', post_id=post_id))
         
         if request.method == 'POST':
             title = request.form.get('title', '').strip()
@@ -2056,8 +2053,9 @@ def delete_post(post_id):
     try:
         post = BlogPost.query.get_or_404(post_id)
         
-        # Check if user is the author or admin
-        if current_user.__class__.__name__ != 'Admin' and post.author_id != current_user.id:
+        # Only admins can delete posts (all users can see delete button but only admins can actually delete)
+        # This check ensures that only admins can delete, matching the template restriction
+        if current_user.__class__.__name__ != 'Admin':
             flash('You do not have permission to delete this post.', 'danger')
             return redirect(url_for('post_detail', post_id=post_id))
         
