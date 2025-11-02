@@ -3,10 +3,10 @@
 {% block title %}Edit Advertisement - Educators' Tribe{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="bg-white rounded-xl shadow-lg p-8">
-        <h2 class="text-3xl font-bold text-gray-900 mb-6">Edit Advertisement</h2>
-        <p class="text-gray-600 mb-8">Update your advertisement details below.</p>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Edit Advertisement</h2>
+        <p class="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Update your advertisement details below.</p>
         
         {% if advert.status == 'active' %}
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -108,16 +108,16 @@
                 </p>
             </div>
             
-            <div class="flex space-x-4">
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95 w-full sm:w-auto">
                     Update Advertisement
                 </button>
                 {% if current_user.__class__.__name__ == 'Admin' %}
-                <a href="{{ url_for('admin_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                <a href="{{ url_for('admin_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 sm:px-8 py-3 rounded-lg font-semibold transition shadow-sm hover:shadow active:scale-95 w-full sm:w-auto text-center">
                     Cancel
                 </a>
                 {% else %}
-                <a href="{{ url_for('my_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                <a href="{{ url_for('my_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 sm:px-8 py-3 rounded-lg font-semibold transition shadow-sm hover:shadow active:scale-95 w-full sm:w-auto text-center">
                     Cancel
                 </a>
                 {% endif %}

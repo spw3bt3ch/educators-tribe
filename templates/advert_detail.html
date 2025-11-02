@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}{{ advert.title }} - Advertisement - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Main Advert -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+        {% if advert.image_url %}
+        <div class="w-full">
+            <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-full h-64 md:h-96 object-cover">
+        </div>
+        {% endif %}
+        
+        <div class="p-8">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-3xl font-bold text-gray-900">{{ advert.title }}</h1>
+                {% if advert.status == 'active' %}
+                <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">Active</span>
+                {% elif advert.status == 'approved' %}
+                <span class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">Approved</span>
+                {% endif %}
+            </div>
+            
+            {% if advert.description %}
+            <div class="prose max-w-none mb-6">
+                <p class="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">{{ advert.description }}</p>
+            </div>
+            {% endif %}
+            
+            {% if advert.link_url %}
+            <div class="mt-6">
+                <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                   class="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition text-lg">
+                    {{ advert.button_text or 'Learn More' }}
+                </a>
+            </div>
+            {% endif %}
+            
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-2">Advertisement Details</p>
+                        <p><strong>Duration:</strong> {{ advert.weeks or 1 }} week{% if advert.weeks != 1 %}s{% endif %}</p>
+                        {% if advert.amount %}
+                        <p><strong>Amount:</strong> ₦{{ "%.2f"|format(advert.amount) }}</p>
+                        {% endif %}
+                        <p><strong>Payment Status:</strong> 
+                            <span class="{% if advert.payment_status == 'paid' %}text-green-600{% else %}text-yellow-600{% endif %}">
+                                {{ advert.payment_status.title() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-2">Timeline</p>
+                        <p><strong>Submitted:</strong> 
+                            {% if advert.submitted_at is string %}
+                                {{ advert.submitted_at[:10] }}
+                            {% else %}
+                                {{ advert.submitted_at.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </p>
+                        {% if advert.approved_at %}
+                        <p><strong>Approved:</strong> 
+                            {% if advert.approved_at is string %}
+                                {{ advert.approved_at[:10] }}
+                            {% else %}
+                                {{ advert.approved_at.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                        {% if advert.end_date %}
+                        <p><strong>Expires:</strong> 
+                            {% if advert.end_date is string %}
+                                {{ advert.end_date[:10] }}
+                            {% else %}
+                                {{ advert.end_date.strftime('%B %d, %Y') }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if advert.status == 'active' and advert.end_date %}
+                <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm font-semibold text-blue-900 mb-2">⏱️ Time Remaining:</p>
+                    <div id="countdown-detail" class="flex gap-3">
+                        <div class="bg-white px-3 py-2 rounded-lg border border-blue-200 text-center">
+                            <span class="font-bold text-blue-700 text-lg" id="days-detail">0</span>
+                            <p class="text-xs text-blue-600 mt-1">Days</p>
+                        </div>
+                        <div class="bg-white px-3 py-2 rounded-lg border border-blue-200 text-center">
+                            <span class="font-bold text-blue-700 text-lg" id="hours-detail">0</span>
+                            <p class="text-xs text-blue-600 mt-1">Hours</p>
+                        </div>
+                        <div class="bg-white px-3 py-2 rounded-lg border border-blue-200 text-center">
+                            <span class="font-bold text-blue-700 text-lg" id="minutes-detail">0</span>
+                            <p class="text-xs text-blue-600 mt-1">Minutes</p>
+                        </div>
+                    </div>
+                    <script>
+                        (function() {
+                            {% if advert.end_date and not (advert.end_date is string) %}
+                            const endDate = new Date('{{ advert.end_date.strftime("%Y-%m-%d %H:%M:%S") }}');
+                            {% else %}
+                            const endDate = new Date('{{ advert.end_date }}');
+                            {% endif %}
+                            
+                            function updateCountdown() {
+                                const now = new Date().getTime();
+                                const distance = endDate.getTime() - now;
+                                
+                                if (distance < 0) {
+                                    document.getElementById('countdown-detail').innerHTML = '<span class="text-red-600 font-semibold">Advertisement Expired</span>';
+                                    return;
+                                }
+                                
+                                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                                
+                                document.getElementById('days-detail').textContent = days;
+                                document.getElementById('hours-detail').textContent = hours;
+                                document.getElementById('minutes-detail').textContent = minutes;
+                            }
+                            
+                            updateCountdown();
+                            setInterval(updateCountdown, 1000);
+                        })();
+                    </script>
+                </div>
+                {% endif %}
+                
+                {% if current_user.is_authenticated and current_user.id == advert.submitted_by %}
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <a href="{{ url_for('edit_advert', advert_id=advert.id) }}" 
+                       class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition mr-3">
+                        ✏️ Edit Advertisement
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Adverts -->
+    {% if related_adverts %}
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">More from This Advertiser</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for related in related_adverts %}
+            <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition">
+                {% if related.image_url %}
+                <img src="{{ related.image_url }}" alt="{{ related.title }}" class="w-full h-32 object-cover">
+                {% endif %}
+                <div class="p-4">
+                    <h3 class="font-semibold text-gray-900 mb-2 text-sm">{{ related.title }}</h3>
+                    {% if related.description %}
+                    <p class="text-xs text-gray-600 mb-3 line-clamp-2">{{ related.description }}</p>
+                    {% endif %}
+                    <a href="{{ url_for('advert_detail', advert_id=related.id) }}" 
+                       class="text-blue-600 hover:text-blue-800 text-xs font-semibold">
+                        View Details →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Back Link -->
+    <div class="mt-8 text-center">
+        <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-gray-800 font-semibold">
+            ← Back to Home
+        </a>
+    </div>
+</div>
+{% endblock %}
+

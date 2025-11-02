@@ -4,46 +4,46 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8 flex justify-between items-center">
+    <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">User Management</h1>
-            <p class="text-gray-600">Monitor and manage user accounts</p>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">User Management</h1>
+            <p class="text-sm sm:text-base text-gray-600">Monitor and manage user accounts</p>
         </div>
-        <a href="{{ url_for('admin_dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+        <a href="{{ url_for('admin_dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition w-full sm:w-auto text-center">
             Back to Dashboard
         </a>
     </div>
     
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Full Name</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Email</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Joined</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Last Login</th>
+                        <th class="px-3 py-3 sm:px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for user in users %}
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ user.id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ user.username }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ user.full_name or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ user.email }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-900">{{ user.id }}</td>
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">{{ user.username }}</td>
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{{ user.full_name or 'N/A' }}</td>
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden md:table-cell truncate max-w-xs">{{ user.email }}</td>
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap">
                             {% if user.is_active %}
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
                             {% else %}
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
                             {% if user.created_at %}
                                 {% if user.created_at is string %}
                                     {{ user.created_at[:10] }}
@@ -54,7 +54,7 @@
                                 N/A
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
                             {% if user.last_login %}
                                 {% if user.last_login is string %}
                                     {{ user.last_login[:16] }}
@@ -65,11 +65,11 @@
                                 Never
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex items-center gap-3">
+                        <td class="px-3 py-4 sm:px-6 whitespace-nowrap text-xs sm:text-sm font-medium">
+                            <div class="flex items-center gap-1 sm:gap-2">
                                 <form action="{{ url_for('toggle_user_status', user_id=user.id) }}" method="POST" class="inline-block">
                                     <button type="submit" 
-                                            class="{% if user.is_active %}text-red-600 hover:text-red-900 hover:underline{% else %}text-green-600 hover:text-green-900 hover:underline{% endif %} transition px-2 py-1">
+                                            class="{% if user.is_active %}text-red-600 hover:text-red-900 hover:underline{% else %}text-green-600 hover:text-green-900 hover:underline{% endif %} transition px-1 sm:px-2 py-1 text-xs sm:text-sm">
                                         {% if user.is_active %}
                                             Deactivate
                                         {% else %}
@@ -81,8 +81,8 @@
                                 <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="inline-block" 
                                       onsubmit="return confirm('⚠️ WARNING: Are you sure you want to DELETE user \"{{ user.username }}\"?\n\nThis will PERMANENTLY delete:\n• The user account\n• All their blog posts\n• All their advertisements\n• All their activities\n• All related data\n\nThis action CANNOT be undone!');">
                                     <button type="submit" 
-                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1 rounded transition shadow-sm hover:shadow">
-                                        🗑️ Delete
+                                            class="bg-red-600 hover:bg-red-700 text-white font-semibold px-2 sm:px-3 py-1 rounded transition shadow-sm hover:shadow text-xs sm:text-sm">
+                                        Delete
                                     </button>
                                 </form>
                             </div>

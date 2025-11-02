@@ -3,12 +3,12 @@
 {% block title %}Edit Post - Educators' Tribe{% endblock %}
 
 {% block content %}
-<div class="bg-gray-50 min-h-screen py-12">
+<div class="bg-gray-50 min-h-screen py-8 sm:py-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-white rounded-lg shadow-md p-8">
+        <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 lg:p-8">
             <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Edit Blog Post</h1>
-                <p class="text-gray-600">Update your post content</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Edit Blog Post</h1>
+                <p class="text-sm sm:text-base text-gray-600">Update your post content</p>
             </div>
 
             <form method="POST" action="{{ url_for('edit_post', post_id=post.id) }}" enctype="multipart/form-data">
@@ -85,11 +85,11 @@
                     </div>
 
                     <!-- Buttons -->
-                    <div class="flex justify-end space-x-4 pt-4 border-t border-gray-200">
-                        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition">
+                    <div class="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+                        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition shadow-sm hover:shadow active:scale-95 text-center w-full sm:w-auto">
                             Cancel
                         </a>
-                        <button type="submit" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                        <button type="submit" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95 w-full sm:w-auto">
                             Update Post
                         </button>
                     </div>

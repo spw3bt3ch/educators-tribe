@@ -5,17 +5,17 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-            <p class="text-gray-600">Monitor and manage Educators' Tribe</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+            <p class="text-sm sm:text-base text-gray-600">Monitor and manage Educators' Tribe</p>
     </div>
     
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-l-4 border-green-500">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Total Users</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ total_users }}</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ total_users }}</p>
                 </div>
                 <div class="bg-green-100 p-3 rounded-full">
                     <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,42 +25,42 @@
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-l-4 border-green-500">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Active Users</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ active_users }}</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ active_users }}</p>
                 </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-green-100 p-2 sm:p-3 rounded-full">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
+        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Total Posts</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ total_posts }}</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ total_posts }}</p>
                 </div>
-                <div class="bg-purple-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-purple-100 p-2 sm:p-3 rounded-full">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-orange-500">
+        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 border-l-4 border-orange-500">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">News Articles</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ total_news }}</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ total_news }}</p>
                 </div>
-                <div class="bg-orange-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-orange-100 p-2 sm:p-3 rounded-full">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
                     </svg>
                 </div>
@@ -69,21 +69,21 @@
     </div>
     
     <!-- Action Buttons -->
-    <div class="mb-8 flex space-x-4 flex-wrap">
-        <a href="{{ url_for('admin_users') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+    <div class="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <a href="{{ url_for('admin_users') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
             Manage Users
         </a>
-        <a href="{{ url_for('admin_adverts') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+        <a href="{{ url_for('admin_adverts') }}" class="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
             Manage Adverts{% if pending_adverts %} <span class="bg-red-500 rounded-full px-2 py-1 text-xs">({{ pending_adverts }})</span>{% endif %}
         </a>
-        <a href="{{ url_for('create_advert') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-            ➕ Create Advert (Free)
+        <a href="{{ url_for('create_advert') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
+            ➕ Create Advert
         </a>
-        <a href="{{ url_for('admin_create_post') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+        <a href="{{ url_for('admin_create_post') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
             ✍️ Create Post
         </a>
-        <a href="{{ url_for('admin_advert_pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-            Set Advert Pricing
+        <a href="{{ url_for('admin_advert_pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition text-center shadow-md hover:shadow-lg active:scale-95">
+            Set Pricing
         </a>
     </div>
     

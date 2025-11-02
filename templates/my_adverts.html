@@ -4,26 +4,26 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8 flex justify-between items-center">
+    <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">My Advertisements</h1>
-            <p class="text-gray-600">View and manage your submitted advertisements</p>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">My Advertisements</h1>
+            <p class="text-sm sm:text-base text-gray-600">View and manage your submitted advertisements</p>
         </div>
-        <a href="{{ url_for('submit_advert') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+        <a href="{{ url_for('submit_advert') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition w-full sm:w-auto text-center">
             Submit New Ad
         </a>
     </div>
     
     {% if adverts %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {% for advert in adverts %}
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             {% if advert.image_url %}
             <img src="{{ advert.image_url }}" alt="{{ advert.title }}" class="w-full h-48 object-cover">
             {% endif %}
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-xl font-bold text-gray-900">{{ advert.title }}</h3>
+            <div class="p-4 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                    <h3 class="text-lg sm:text-xl font-bold text-gray-900 line-clamp-2">{{ advert.title }}</h3>
                     {% if advert.status == 'pending' %}
                     <span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
                     {% elif advert.status == 'approved' %}
@@ -138,14 +138,14 @@
                 
                 <div class="flex gap-2 mb-2">
                     <a href="{{ url_for('edit_advert', advert_id=advert.id) }}" 
-                       class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition text-sm">
+                       class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2.5 rounded-lg font-semibold transition text-sm shadow-md hover:shadow-lg active:scale-95">
                         ✏️ Edit
                     </a>
                 </div>
                 
                 {% if advert.link_url and (advert.status == 'approved' or advert.status == 'active') %}
                 <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
-                   class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition">
+                   class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2.5 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
                     {{ advert.button_text or 'Visit Link' }}
                 </a>
                 {% endif %}
@@ -160,7 +160,7 @@
         </svg>
         <h3 class="text-lg font-medium text-gray-900 mb-2">No Advertisements Yet</h3>
         <p class="text-gray-600 mb-6">You haven't submitted any advertisements yet.</p>
-        <a href="{{ url_for('submit_advert') }}" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+        <a href="{{ url_for('submit_advert') }}" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
             Submit Your First Ad
         </a>
     </div>

@@ -5,18 +5,18 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">Nigerian Education News</h1>
-        <p class="text-gray-600">Latest updates from PunchNG and other sources</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Nigerian Education News</h1>
+        <p class="text-sm sm:text-base text-gray-600">Latest updates from PunchNG and other sources</p>
     </div>
     
     {% if news_articles.items %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
         {% for article in news_articles.items %}
         <div class="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden">
             {% if article.image_url %}
             <img src="{{ article.image_url }}" alt="{{ article.title }}" class="w-full h-48 object-cover">
             {% endif %}
-            <div class="p-6">
+            <div class="p-4 sm:p-6">
                 <div class="flex items-center mb-3">
                     <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">{{ article.category }}</span>
                     <span class="ml-auto text-xs text-gray-500">
@@ -27,7 +27,7 @@
                         {% endif %}
                     </span>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-3 line-clamp-3">{{ article.title }}</h3>
+                <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 line-clamp-3">{{ article.title }}</h3>
                 {% if article.source_url %}
                 <a href="{{ article.source_url }}" target="_blank" rel="noopener noreferrer" 
                    class="text-green-600 hover:text-green-800 text-sm font-medium inline-flex items-center group">
@@ -44,19 +44,19 @@
     
     <!-- Pagination -->
     {% if news_articles.pages > 1 %}
-    <div class="flex justify-center items-center space-x-2">
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-2">
         {% if news_articles.has_prev %}
         <a href="{{ url_for('news', page=news_articles.prev_num) }}" 
-           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Previous</a>
+           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md hover:shadow-lg active:scale-95 w-full sm:w-auto text-center">Previous</a>
         {% endif %}
         
-        <span class="text-gray-600">
+        <span class="text-gray-600 text-sm sm:text-base">
             Page {{ news_articles.page }} of {{ news_articles.pages }}
         </span>
         
         {% if news_articles.has_next %}
         <a href="{{ url_for('news', page=news_articles.next_num) }}" 
-           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Next</a>
+           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md hover:shadow-lg active:scale-95 w-full sm:w-auto text-center">Next</a>
         {% endif %}
     </div>
     {% endif %}

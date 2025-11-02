@@ -3,11 +3,11 @@
 {% block title %}Create Advertisement - Admin - Educators' Tribe{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="bg-white rounded-xl shadow-lg p-8">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
         <div class="mb-6">
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">Create Advertisement (Free)</h2>
-            <p class="text-gray-600">Create an advertisement that will be automatically approved and free for the selected user.</p>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Create Advertisement (Free)</h2>
+            <p class="text-sm sm:text-base text-gray-600">Create an advertisement that will be automatically approved and free for the selected user.</p>
         </div>
         
         <form action="{{ url_for('create_advert') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
@@ -105,11 +105,11 @@
                 </p>
             </div>
             
-            <div class="flex space-x-4">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95 w-full sm:w-auto">
                     Create Advertisement
                 </button>
-                <a href="{{ url_for('admin_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                <a href="{{ url_for('admin_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 sm:px-8 py-3 rounded-lg font-semibold transition shadow-sm hover:shadow active:scale-95 w-full sm:w-auto text-center">
                     Cancel
                 </a>
             </div>

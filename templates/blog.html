@@ -6,13 +6,13 @@
 <div class="bg-white min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <!-- Header -->
-        <div class="flex justify-between items-center mb-8">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-4xl font-bold text-gray-900 mb-2">Blog Posts</h1>
-                <p class="text-gray-600">Read and share insights from fellow educators</p>
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Blog Posts</h1>
+                <p class="text-gray-600 text-sm sm:text-base">Read and share insights from fellow educators</p>
             </div>
             {% if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin' %}
-            <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center">
+            <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition inline-flex items-center justify-center w-full sm:w-auto shadow-md hover:shadow-lg active:scale-95">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -27,7 +27,7 @@
             <div class="lg:col-span-3">
                 <!-- Blog Posts Grid -->
                 {% if posts %}
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-12">
                     {% for post in posts %}
                     <article class="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200">
                         {% if post.image_url %}
@@ -38,35 +38,35 @@
                             </a>
                         </div>
                         {% endif %}
-                        <div class="p-6">
+                        <div class="p-4 sm:p-6">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center space-x-2">
                                     {% if post.author.profile_picture %}
                                     <img src="{{ post.author.profile_picture }}" alt="{{ post.author.username }}" 
-                                         class="w-10 h-10 rounded-full object-cover border-2 border-green-500">
+                                         class="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-green-500">
                                     {% else %}
-                                    <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    <div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                                         {{ post.author.username[0].upper() }}
                                     </div>
                                     {% endif %}
                                     <div>
-                                        <p class="text-sm font-semibold text-gray-900">{{ post.author.full_name or post.author.username }}</p>
+                                        <p class="text-xs sm:text-sm font-semibold text-gray-900">{{ post.author.full_name or post.author.username }}</p>
                                         <p class="text-xs text-gray-500">
                                             {% if post.created_at is string %}
                                                 {{ post.created_at[:10] }}
                                             {% else %}
-                                                {{ post.created_at.strftime('%B %d, %Y') }}
+                                                {{ post.created_at.strftime('%b %d, %Y') }}
                                             {% endif %}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                             
-                            <h2 class="text-xl font-bold text-gray-900 mb-3 hover:text-green-600 transition line-clamp-2">
+                            <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-3 hover:text-green-600 transition line-clamp-2">
                                 <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
                             </h2>
                             
-                            <p class="text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                            <p class="text-sm sm:text-base text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
                             
                             <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">
                                 Read More
@@ -81,21 +81,17 @@
 
                 <!-- Pagination -->
                 {% if pagination and pagination.pages > 1 %}
-                <div class="flex justify-center items-center space-x-2 mb-8">
+                <div class="flex flex-wrap justify-center items-center gap-2 mb-8">
                     {% if pagination.has_prev %}
-                    <a href="{{ url_for('blog', page=pagination.prev_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
-                        Previous
-                    </a>
+                    <a href="{{ url_for('blog', page=pagination.prev_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition shadow-sm hover:shadow active:scale-95">Previous</a>
                     {% endif %}
                     
                     {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                         {% if page_num %}
                             {% if page_num == pagination.page %}
-                            <span class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium">{{ page_num }}</span>
+                            <span class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium shadow-md">{{ page_num }}</span>
                             {% else %}
-                            <a href="{{ url_for('blog', page=page_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
-                                {{ page_num }}
-                            </a>
+                            <a href="{{ url_for('blog', page=page_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition shadow-sm hover:shadow active:scale-95">{{ page_num }}</a>
                             {% endif %}
                         {% else %}
                         <span class="px-4 py-2 text-gray-500">...</span>
@@ -103,9 +99,7 @@
                     {% endfor %}
                     
                     {% if pagination.has_next %}
-                    <a href="{{ url_for('blog', page=pagination.next_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
-                        Next
-                    </a>
+                    <a href="{{ url_for('blog', page=pagination.next_num) }}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition shadow-sm hover:shadow active:scale-95">Next</a>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -117,7 +111,7 @@
                     <h3 class="text-xl font-semibold text-gray-900 mb-2">No Blog Posts Yet</h3>
                     <p class="text-gray-600 mb-6">Be the first to share your thoughts with the community!</p>
                     {% if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin' %}
-                    <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center">
+                    <a href="{{ url_for('create_post') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center shadow-md hover:shadow-lg active:scale-95">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
@@ -150,12 +144,18 @@
                             {% if advert.description %}
                             <p class="text-xs text-gray-600 mb-3 line-clamp-2">{{ advert.description }}</p>
                             {% endif %}
-                            {% if advert.link_url %}
-                            <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
-                               class="inline-block w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-center text-sm font-semibold transition">
-                                {{ advert.button_text or 'Learn More' }}
-                            </a>
-                            {% endif %}
+                            <div class="space-y-2">
+                                <a href="{{ url_for('advert_detail', advert_id=advert.id) }}" 
+                                   class="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-center text-xs font-semibold transition">
+                                    View Details
+                                </a>
+                                {% if advert.link_url %}
+                                <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                                   class="inline-block w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-center text-xs font-semibold transition">
+                                    {{ advert.button_text or 'Learn More' }}
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                         {% endfor %}
                     </div>

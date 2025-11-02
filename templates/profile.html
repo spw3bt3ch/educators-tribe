@@ -3,15 +3,15 @@
 {% block title %}Profile - Educators' Tribe{% endblock %}
 
 {% block content %}
-<div class="bg-gray-50 min-h-screen py-12">
+<div class="bg-gray-50 min-h-screen py-8 sm:py-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-white rounded-lg shadow-md p-8">
+        <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 lg:p-8">
             <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
-                <p class="text-gray-600">Manage your profile information and picture</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+                <p class="text-sm sm:text-base text-gray-600">Manage your profile information and picture</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                 <!-- Profile Picture Section (Regular Users Only) -->
                 {% if user.__class__.__name__ != 'Admin' %}
                 <div class="md:col-span-1">
@@ -71,14 +71,14 @@
                             {% if user.profile_picture %}
                             <div class="mt-4">
                                 <button type="submit" name="remove_picture" value="1" 
-                                        class="w-full px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium text-sm transition">
+                                        class="w-full px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium text-sm transition shadow-sm hover:shadow active:scale-95">
                                     Remove Picture
                                 </button>
                             </div>
                             {% endif %}
 
                             <!-- Update Button -->
-                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                            <button type="submit" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
                                 Update Picture
                             </button>
                         </form>
@@ -124,7 +124,7 @@
                                 <p class="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                             </div>
                             
-                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                            <button type="submit" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
                                 Save Changes
                             </button>
                         </form>
@@ -166,7 +166,7 @@
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
                             </div>
                             
-                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                            <button type="submit" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
                                 Change Password
                             </button>
                         </form>

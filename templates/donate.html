@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Support This Growth - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+        <div class="text-center mb-6 sm:mb-8">
+            <div class="bg-yellow-100 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 sm:w-12 sm:h-12 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"></path>
+                    <path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Support This Growth</h1>
+            <p class="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto">
+                Your donation helps us innovate, improve, and continue serving the Nigerian teaching community. 
+                Every contribution makes a difference! 🙏
+            </p>
+        </div>
+
+        <form action="{{ url_for('donate') }}" method="POST" class="space-y-6">
+            <!-- Donation Amount Selection -->
+            <div>
+                <label class="block text-sm sm:text-base font-medium text-gray-700 mb-3">Select or Enter Amount</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="amount" value="500" class="peer sr-only">
+                        <div class="bg-gray-100 hover:bg-green-100 peer-checked:bg-green-600 peer-checked:text-white text-center py-3 px-4 rounded-lg font-semibold transition shadow-sm hover:shadow">
+                            ₦500
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="amount" value="1000" class="peer sr-only">
+                        <div class="bg-gray-100 hover:bg-green-100 peer-checked:bg-green-600 peer-checked:text-white text-center py-3 px-4 rounded-lg font-semibold transition shadow-sm hover:shadow">
+                            ₦1,000
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="amount" value="2500" class="peer sr-only">
+                        <div class="bg-gray-100 hover:bg-green-100 peer-checked:bg-green-600 peer-checked:text-white text-center py-3 px-4 rounded-lg font-semibold transition shadow-sm hover:shadow">
+                            ₦2,500
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="amount" value="5000" class="peer sr-only">
+                        <div class="bg-gray-100 hover:bg-green-100 peer-checked:bg-green-600 peer-checked:text-white text-center py-3 px-4 rounded-lg font-semibold transition shadow-sm hover:shadow">
+                            ₦5,000
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="text-gray-500 text-lg font-semibold">₦</span>
+                    </div>
+                    <input type="number" 
+                           name="custom_amount" 
+                           id="custom_amount"
+                           min="100" 
+                           step="100"
+                           placeholder="Enter custom amount (minimum ₦100)" 
+                           class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-base"
+                           onchange="document.querySelectorAll('input[name=amount]').forEach(el => el.checked = false);">
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Minimum donation: ₦100</p>
+            </div>
+
+            <!-- Email (only for non-authenticated users) -->
+            {% if not current_user.is_authenticated %}
+            <div>
+                <label for="donor_email" class="block text-sm font-medium text-gray-700 mb-2">Your Email Address</label>
+                <input type="email" 
+                       id="donor_email" 
+                       name="donor_email" 
+                       required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-base"
+                       placeholder="your.email@example.com">
+                <p class="text-xs text-gray-500 mt-1">We'll send a receipt to this email</p>
+            </div>
+            {% endif %}
+
+            <!-- Payment Information -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                    <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-green-900 mb-1">🔒 Secure Payment</p>
+                        <p class="text-xs sm:text-sm text-green-800">Your payment is processed securely through Paystack. All major cards, bank transfers, and mobile money are supported.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
+                    Continue to Payment
+                </button>
+                <a href="{{ url_for('index') }}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold transition shadow-sm hover:shadow active:scale-95 text-center">
+                    Cancel
+                </a>
+            </div>
+
+            <!-- Thank You Message -->
+            <div class="text-center pt-4 border-t border-gray-200">
+                <p class="text-sm text-gray-600">
+                    💚 Thank you for supporting Educators' Tribe! Your generosity fuels our mission to transform education in Nigeria.
+                </p>
+            </div>
+        </form>
+    </div>
+
+    <!-- Information Section -->
+    <div class="mt-8 bg-blue-50 rounded-lg p-4 sm:p-6 border border-blue-200">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">How Your Donation Helps</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 rounded-full p-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-semibold text-gray-900 text-sm mb-1">Platform Development</p>
+                    <p class="text-xs text-gray-600">Fund new features and improvements</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 rounded-full p-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-semibold text-gray-900 text-sm mb-1">Server & Infrastructure</p>
+                    <p class="text-xs text-gray-600">Keep the platform running smoothly</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="bg-blue-100 rounded-full p-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-semibold text-gray-900 text-sm mb-1">Community Growth</p>
+                    <p class="text-xs text-gray-600">Reach more teachers across Nigeria</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
