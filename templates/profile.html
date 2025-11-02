@@ -12,7 +12,8 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Profile Picture Section -->
+                <!-- Profile Picture Section (Regular Users Only) -->
+                {% if user.__class__.__name__ != 'Admin' %}
                 <div class="md:col-span-1">
                     <div class="text-center">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Picture</h2>
@@ -31,6 +32,7 @@
 
                         <!-- Upload Form -->
                         <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" class="space-y-4">
+                            <input type="hidden" name="form_type" value="picture">
                             <!-- File Upload -->
                             <div>
                                 <label for="profile_picture" class="block text-sm text-gray-600 mb-2">Upload Picture</label>
@@ -82,45 +84,121 @@
                         </form>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Profile Information -->
-                <div class="md:col-span-2">
+                <div class="{% if user.__class__.__name__ == 'Admin' %}md:col-span-3{% else %}md:col-span-2{% endif %}">
                     <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Information</h2>
-                    <div class="space-y-4">
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                            <p class="text-gray-900">{{ user.username }}</p>
+                    
+                    <!-- Edit Profile Information Form -->
+                    <div class="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Edit Information</h3>
+                        <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
+                            <input type="hidden" name="form_type" value="info">
+                            
+                            <div>
+                                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" 
+                                       id="username" 
+                                       name="username" 
+                                       value="{{ user.username }}" 
+                                       required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                            </div>
+                            
+                            {% if user.__class__.__name__ != 'Admin' %}
+                            <div>
+                                <label for="full_name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                <input type="text" 
+                                       id="full_name" 
+                                       name="full_name" 
+                                       value="{{ user.full_name or '' }}" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                                       placeholder="Enter your full name">
+                            </div>
+                            {% endif %}
+                            
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <p class="text-gray-600 text-sm">{{ user.email }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                            </div>
+                            
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                                Save Changes
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Change Password Form -->
+                    <div class="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
+                        <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
+                            <input type="hidden" name="form_type" value="password">
+                            
+                            <div>
+                                <label for="current_password" class="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                                <input type="password" 
+                                       id="current_password" 
+                                       name="current_password" 
+                                       required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                            </div>
+                            
+                            <div>
+                                <label for="new_password" class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                                <input type="password" 
+                                       id="new_password" 
+                                       name="new_password" 
+                                       required
+                                       minlength="6"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                                <p class="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+                            </div>
+                            
+                            <div>
+                                <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                                <input type="password" 
+                                       id="confirm_password" 
+                                       name="confirm_password" 
+                                       required
+                                       minlength="6"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                            </div>
+                            
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition">
+                                Change Password
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Account Information -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+                                <p class="text-gray-900">
+                                    {% if user.created_at is string %}
+                                        {{ user.created_at[:10] }}
+                                    {% else %}
+                                        {{ user.created_at.strftime('%B %d, %Y') }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {% if user.last_login %}
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Login</label>
+                                <p class="text-gray-900">
+                                    {% if user.last_login is string %}
+                                        {{ user.last_login[:10] }}
+                                    {% else %}
+                                        {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {% endif %}
                         </div>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                            <p class="text-gray-900">{{ user.full_name or 'Not set' }}</p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <p class="text-gray-900">{{ user.email }}</p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
-                            <p class="text-gray-900">
-                                {% if user.created_at is string %}
-                                    {{ user.created_at[:10] }}
-                                {% else %}
-                                    {{ user.created_at.strftime('%B %d, %Y') }}
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% if user.last_login %}
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Login</label>
-                            <p class="text-gray-900">
-                                {% if user.last_login is string %}
-                                    {{ user.last_login[:10] }}
-                                {% else %}
-                                    {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
