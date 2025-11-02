@@ -1516,44 +1516,144 @@ def reset_password(token):
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """User profile page - view and edit profile including profile picture"""
+    """Profile page - view and edit profile information for users and admins"""
     if not db_connected:
         flash('Database not available. Please try again later.', 'danger')
         return redirect(url_for('index'))
     
+    # Check if current user is admin or regular user
+    is_admin = current_user.__class__.__name__ == 'Admin'
+    
     if request.method == 'POST':
-        # Handle profile picture upload
-        profile_picture_url = current_user.profile_picture  # Keep existing by default
-        
-        # Check if profile picture file was uploaded
-        if 'profile_picture' in request.files:
-            profile_file = request.files['profile_picture']
-            if profile_file and profile_file.filename:
-                # Validate file type
-                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-                filename = secure_filename(profile_file.filename)
-                if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                    # Upload to ImageKit
-                    uploaded_url = upload_image_to_imagekit(profile_file, folder_name='profiles')
-                    if uploaded_url:
-                        profile_picture_url = uploaded_url
+        try:
+            # Determine which form was submitted
+            form_type = request.form.get('form_type', 'picture')
+            
+            if form_type == 'picture' and not is_admin:
+                # Handle profile picture upload (only for regular users)
+                profile_picture_url = current_user.profile_picture  # Keep existing by default
+                
+                # Check if profile picture file was uploaded
+                if 'profile_picture' in request.files:
+                    profile_file = request.files['profile_picture']
+                    if profile_file and profile_file.filename:
+                        # Validate file type
+                        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                        filename = secure_filename(profile_file.filename)
+                        if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                            # Upload to ImageKit
+                            uploaded_url = upload_image_to_imagekit(profile_file, folder_name='profiles')
+                            if uploaded_url:
+                                profile_picture_url = uploaded_url
+                            else:
+                                flash('Failed to upload profile picture. Please try again or use an image URL.', 'warning')
+                
+                # Handle profile picture URL input
+                profile_url_input = request.form.get('profile_picture_url', '').strip()
+                if 'profile_picture' not in request.files or not request.files['profile_picture'].filename:
+                    if profile_url_input:
+                        profile_picture_url = profile_url_input
+                    elif not profile_url_input and 'remove_picture' in request.form:
+                        profile_picture_url = None
+                
+                # Update profile picture
+                current_user.profile_picture = profile_picture_url
+                db.session.commit()
+                
+                flash('Profile picture updated successfully!', 'success')
+                
+            elif form_type == 'info':
+                # Handle profile information update (username for both, full_name only for users)
+                new_username = request.form.get('username', '').strip()
+                
+                # Validate username
+                if not new_username:
+                    flash('Username cannot be empty.', 'danger')
+                    return redirect(url_for('profile'))
+                
+                # Check if username is being changed and if it already exists
+                if new_username != current_user.username:
+                    # Check in appropriate table based on user type
+                    if is_admin:
+                        existing = Admin.query.filter_by(username=new_username).first()
                     else:
-                        flash('Failed to upload profile picture. Please try again or use an image URL.', 'warning')
-        
-        # Handle profile picture URL input
-        profile_url_input = request.form.get('profile_picture_url', '').strip()
-        if 'profile_picture' not in request.files or not request.files['profile_picture'].filename:
-            if profile_url_input:
-                profile_picture_url = profile_url_input
-            elif not profile_url_input and 'remove_picture' in request.form:
-                profile_picture_url = None
-        
-        # Update profile picture
-        current_user.profile_picture = profile_picture_url
-        db.session.commit()
-        
-        flash('Profile picture updated successfully!', 'success')
-        return redirect(url_for('profile'))
+                        existing = User.query.filter_by(username=new_username).first()
+                    
+                    if existing:
+                        flash('This username is already taken. Please choose another.', 'danger')
+                        return redirect(url_for('profile'))
+                
+                # Update username for both users and admins
+                current_user.username = new_username
+                
+                # Update full_name only for regular users (admins don't have this field)
+                if not is_admin:
+                    new_full_name = request.form.get('full_name', '').strip()
+                    current_user.full_name = new_full_name if new_full_name else None
+                
+                db.session.commit()
+                
+                # Log activity only for regular users
+                if not is_admin:
+                    activity = UserActivity(
+                        user_id=current_user.id,
+                        action='update_profile',
+                        description=f'User updated profile information'
+                    )
+                    db.session.add(activity)
+                    db.session.commit()
+                
+                flash('Profile information updated successfully!', 'success')
+                
+            elif form_type == 'password':
+                # Handle password change (works for both users and admins)
+                current_password = request.form.get('current_password', '')
+                new_password = request.form.get('new_password', '')
+                confirm_password = request.form.get('confirm_password', '')
+                
+                # Validate fields
+                if not current_password or not new_password or not confirm_password:
+                    flash('Please fill in all password fields.', 'danger')
+                    return redirect(url_for('profile'))
+                
+                # Verify current password
+                if not current_user.check_password(current_password):
+                    flash('Current password is incorrect.', 'danger')
+                    return redirect(url_for('profile'))
+                
+                # Check if new passwords match
+                if new_password != confirm_password:
+                    flash('New passwords do not match.', 'danger')
+                    return redirect(url_for('profile'))
+                
+                # Validate password length
+                if len(new_password) < 6:
+                    flash('Password must be at least 6 characters long.', 'danger')
+                    return redirect(url_for('profile'))
+                
+                # Update password
+                current_user.set_password(new_password)
+                db.session.commit()
+                
+                # Log activity only for regular users
+                if not is_admin:
+                    activity = UserActivity(
+                        user_id=current_user.id,
+                        action='change_password',
+                        description=f'User changed password'
+                    )
+                    db.session.add(activity)
+                    db.session.commit()
+                
+                flash('Password changed successfully!', 'success')
+            
+            return redirect(url_for('profile'))
+            
+        except Exception as e:
+            print(f"Error updating profile: {e}")
+            db.session.rollback()
+            flash('An error occurred while updating your profile. Please try again.', 'danger')
+            return redirect(url_for('profile'))
     
     return render_template('profile.html', user=current_user)
 
