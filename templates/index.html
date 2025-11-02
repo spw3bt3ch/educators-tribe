@@ -69,12 +69,18 @@
                                     {% endif %}
                                 </div>
                                 {% endif %}
-                                {% if advert.link_url %}
-                                <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
-                                   class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                                    {{ advert.button_text or 'Learn More' }}
-                                </a>
-                                {% endif %}
+                                <div class="flex gap-3 flex-wrap">
+                                    <a href="{{ url_for('advert_detail', advert_id=advert.id) }}" 
+                                       class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                                        View Full Details
+                                    </a>
+                                    {% if advert.link_url %}
+                                    <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
+                                       class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                                        {{ advert.button_text or 'Learn More' }}
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -344,40 +350,7 @@
 {% endif %}
 
 <script>
-// Advert Carousel Functionality
-{% if approved_adverts and approved_adverts|length > 1 %}
-let currentAdvertIndex = 0;
-const adverts = document.querySelectorAll('#adverts-carousel > div');
-const totalAdverts = adverts.length;
-
-function showAdvert(index) {
-    const carousel = document.getElementById('adverts-carousel');
-    carousel.style.transform = `translateX(-${index * 100}%)`;
-    
-    // Update indicators
-    document.querySelectorAll('.advert-indicator').forEach((ind, i) => {
-        ind.classList.toggle('bg-green-600', i === index);
-        ind.classList.toggle('bg-gray-400', i !== index);
-    });
-}
-
-document.getElementById('next-advert')?.addEventListener('click', () => {
-    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
-    showAdvert(currentAdvertIndex);
-});
-
-document.getElementById('prev-advert')?.addEventListener('click', () => {
-    currentAdvertIndex = (currentAdvertIndex - 1 + totalAdverts) % totalAdverts;
-    showAdvert(currentAdvertIndex);
-});
-
-// Auto-rotate carousel
-setInterval(() => {
-    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
-    showAdvert(currentAdvertIndex);
-}, 5000); // Change every 5 seconds
-
-// Toggle description read more/less
+// Toggle description read more/less - Always available
 function toggleDescription(advertId) {
     console.log('Toggle called for advert:', advertId);
     const shortDesc = document.getElementById('advert-description-short-' + advertId);
@@ -410,6 +383,40 @@ function toggleDescription(advertId) {
 // Make toggleDescription available globally
 window.toggleDescription = toggleDescription;
 
+// Advert Carousel Functionality
+{% if approved_adverts and approved_adverts|length > 1 %}
+let currentAdvertIndex = 0;
+const adverts = document.querySelectorAll('#adverts-carousel > div');
+const totalAdverts = adverts.length;
+
+function showAdvert(index) {
+    const carousel = document.getElementById('adverts-carousel');
+    carousel.style.transform = `translateX(-${index * 100}%)`;
+    
+    // Update indicators
+    document.querySelectorAll('.advert-indicator').forEach((ind, i) => {
+        ind.classList.toggle('bg-green-600', i === index);
+        ind.classList.toggle('bg-gray-400', i !== index);
+    });
+}
+
+document.getElementById('next-advert')?.addEventListener('click', () => {
+    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+});
+
+document.getElementById('prev-advert')?.addEventListener('click', () => {
+    currentAdvertIndex = (currentAdvertIndex - 1 + totalAdverts) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+});
+
+// Auto-rotate carousel
+setInterval(() => {
+    currentAdvertIndex = (currentAdvertIndex + 1) % totalAdverts;
+    showAdvert(currentAdvertIndex);
+}, 5000); // Change every 5 seconds
+{% endif %}
+
 // Set up event listeners for read more buttons using event delegation
 document.addEventListener('click', function(e) {
     if (e.target && e.target.id && e.target.id.startsWith('read-more-btn-')) {
@@ -419,7 +426,7 @@ document.addEventListener('click', function(e) {
         toggleDescription(parseInt(advertId));
     }
 });
-
+{% if approved_adverts and approved_adverts|length > 1 %}
 // Indicator click handlers
 document.querySelectorAll('.advert-indicator').forEach((ind, index) => {
     ind.addEventListener('click', () => {

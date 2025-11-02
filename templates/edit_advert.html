@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Advertisement - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Edit Advertisement</h2>
+        <p class="text-gray-600 mb-8">Update your advertisement details below.</p>
+        
+        {% if advert.status == 'active' %}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-blue-800">
+                <strong>⚠️ Active Advertisement:</strong> This advertisement is currently running. Changes will be reflected immediately.
+            </p>
+        </div>
+        {% endif %}
+        
+        {% if current_user.__class__.__name__ == 'Admin' %}
+        <form action="{{ url_for('admin_edit_advert', advert_id=advert.id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% else %}
+        <form action="{{ url_for('edit_advert', advert_id=advert.id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% endif %}
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Advert Title *</label>
+                <input type="text" id="title" name="title" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="Enter your advertisement title"
+                       value="{{ advert.title }}">
+            </div>
+            
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea id="description" name="description" rows="4"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="Describe your advertisement">{{ advert.description or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Advert Image</label>
+                <p class="text-xs text-gray-500 mb-3">Upload a new image file or provide an image URL</p>
+                
+                {% if advert.image_url %}
+                <!-- Current Image -->
+                <div class="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-xs text-gray-600 mb-2">Current Image:</p>
+                    <img src="{{ advert.image_url }}" alt="Current advert image" class="max-w-full h-32 object-cover rounded-lg border border-gray-300">
+                </div>
+                {% endif %}
+                
+                <!-- Image Upload -->
+                <div class="mb-3">
+                    <label for="image_file" class="block text-sm text-gray-600 mb-2">Upload New Image (PNG, JPG, JPEG, GIF, WEBP)</label>
+                    <input type="file" 
+                           id="image_file" 
+                           name="image_file" 
+                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                           onchange="previewImage(event)"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                </div>
+                
+                <!-- OR Divider -->
+                <div class="flex items-center my-4">
+                    <div class="flex-1 border-t border-gray-300"></div>
+                    <span class="px-4 text-sm text-gray-500">OR</span>
+                    <div class="flex-1 border-t border-gray-300"></div>
+                </div>
+                
+                <!-- Image URL -->
+                <div>
+                    <label for="image_url" class="block text-sm text-gray-600 mb-2">Image URL</label>
+                    <input type="url" id="image_url" name="image_url"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="https://example.com/image.jpg"
+                           onchange="previewImageFromUrl(event)"
+                           value="{{ advert.image_url or '' }}">
+                    <p class="text-sm text-gray-500 mt-1">Provide a URL to an image hosted elsewhere</p>
+                </div>
+                
+                <!-- Image Preview -->
+                <div id="image-preview" class="mt-4 hidden">
+                    <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg border border-gray-300">
+                </div>
+            </div>
+            
+            <div>
+                <label for="link_url" class="block text-sm font-medium text-gray-700 mb-2">Link URL</label>
+                <input type="url" id="link_url" name="link_url"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="https://example.com"
+                       value="{{ advert.link_url or '' }}">
+                <p class="text-sm text-gray-500 mt-1">URL where users should be directed when they click the button</p>
+            </div>
+            
+            <div>
+                <label for="button_text" class="block text-sm font-medium text-gray-700 mb-2">Button Text</label>
+                <input type="text" id="button_text" name="button_text"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="Learn More"
+                       value="{{ advert.button_text or 'Learn More' }}">
+            </div>
+            
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p class="text-sm text-gray-700">
+                    <strong>Duration:</strong> {{ advert.weeks or 1 }} week{% if advert.weeks != 1 %}s{% endif %}<br>
+                    <strong>Status:</strong> {{ advert.status.title() }}<br>
+                    <strong>Payment Status:</strong> {{ advert.payment_status.title() }}
+                </p>
+            </div>
+            
+            <div class="flex space-x-4">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+                    Update Advertisement
+                </button>
+                {% if current_user.__class__.__name__ == 'Admin' %}
+                <a href="{{ url_for('admin_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                    Cancel
+                </a>
+                {% else %}
+                <a href="{{ url_for('my_adverts') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-8 py-3 rounded-lg font-semibold transition">
+                    Cancel
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function previewImage(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.classList.add('hidden');
+    }
+}
+
+function previewImageFromUrl(event) {
+    const url = event.target.value;
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    
+    if (url) {
+        previewImg.src = url;
+        preview.classList.remove('hidden');
+    } else {
+        preview.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}
+

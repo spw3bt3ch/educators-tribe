@@ -79,12 +79,12 @@
         <a href="{{ url_for('create_advert') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
             ➕ Create Advert (Free)
         </a>
+        <a href="{{ url_for('admin_create_post') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+            ✍️ Create Post
+        </a>
         <a href="{{ url_for('admin_advert_pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition">
             Set Advert Pricing
         </a>
-        <button onclick="fetchNews()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-            Fetch Latest News
-        </button>
     </div>
     
     <!-- Recent Activities -->
@@ -93,7 +93,7 @@
             <h2 class="text-2xl font-bold text-gray-900 mb-4">Recent Activities</h2>
             <div class="space-y-4">
                 {% if recent_activities %}
-                    {% for activity in recent_activities[:10] %}
+                    {% for activity in recent_activities[:4] %}
                     <div class="border-l-4 border-green-500 pl-4 py-2">
                         <div class="flex items-center justify-between">
                             <div>
@@ -147,29 +147,5 @@
         </div>
     </div>
 </div>
-
-<script>
-function fetchNews() {
-    fetch('/api/fetch-news', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(`Successfully fetched ${data.articles_added} new articles!`);
-            location.reload();
-        } else {
-            alert('Error fetching news');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error fetching news');
-    });
-}
-</script>
 {% endblock %}
 

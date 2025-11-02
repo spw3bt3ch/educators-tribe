@@ -38,24 +38,40 @@
             </div>
             
             <div>
-                <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">Advert Image URL *</label>
-                <input type="url" id="image_url" name="image_url"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                       placeholder="https://example.com/image.jpg"
-                       onchange="previewImageFromUrl(event)"
-                       required>
-                <p class="text-sm text-gray-500 mt-1">Please provide a URL to the image (PNG, JPG, JPEG, GIF, or WEBP)</p>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Advert Image *</label>
+                <p class="text-xs text-gray-500 mb-3">Upload an image file or provide an image URL</p>
+                
+                <!-- Image Upload -->
+                <div class="mb-3">
+                    <label for="image_file" class="block text-sm text-gray-600 mb-2">Upload Image (PNG, JPG, JPEG, GIF, WEBP)</label>
+                    <input type="file" 
+                           id="image_file" 
+                           name="image_file" 
+                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                           onchange="previewImageFromFile(event)"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                
+                <!-- OR Divider -->
+                <div class="flex items-center my-4">
+                    <div class="flex-1 border-t border-gray-300"></div>
+                    <span class="px-4 text-sm text-gray-500">OR</span>
+                    <div class="flex-1 border-t border-gray-300"></div>
+                </div>
+                
+                <!-- Image URL -->
+                <div>
+                    <label for="image_url" class="block text-sm text-gray-600 mb-2">Image URL</label>
+                    <input type="url" id="image_url" name="image_url"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="https://example.com/image.jpg"
+                           onchange="previewImageFromUrl(event)">
+                    <p class="text-sm text-gray-500 mt-1">Provide a URL to an image hosted elsewhere</p>
+                </div>
                 
                 <!-- Image Preview -->
                 <div id="image-preview" class="mt-4 hidden">
                     <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg border border-gray-300">
-                </div>
-                
-                <div class="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p class="text-sm text-blue-800">
-                        <strong>ℹ️ Note:</strong> Please use an image URL (link to an image hosted elsewhere). 
-                        Direct file uploads are not available.
-                    </p>
                 </div>
             </div>
             
@@ -110,6 +126,23 @@ function previewImageFromUrl(event) {
     if (url) {
         previewImg.src = url;
         preview.classList.remove('hidden');
+    } else {
+        preview.classList.add('hidden');
+    }
+}
+
+function previewImageFromFile(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
     } else {
         preview.classList.add('hidden');
     }

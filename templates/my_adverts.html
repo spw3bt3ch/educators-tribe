@@ -136,6 +136,13 @@
                 </div>
                 {% endif %}
                 
+                <div class="flex gap-2 mb-2">
+                    <a href="{{ url_for('edit_advert', advert_id=advert.id) }}" 
+                       class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition text-sm">
+                        ✏️ Edit
+                    </a>
+                </div>
+                
                 {% if advert.link_url and (advert.status == 'approved' or advert.status == 'active') %}
                 <a href="{{ advert.link_url }}" target="_blank" rel="noopener noreferrer" 
                    class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition">
