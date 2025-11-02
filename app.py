@@ -3095,6 +3095,142 @@ def payment_callback(advert_id):
     
     return redirect(url_for('my_adverts'))
 
+@app.route('/donate', methods=['GET', 'POST'])
+def donate():
+    """Donation page with Paystack integration"""
+    # Initialize Paystack payment for donation
+    if request.method == 'POST':
+        # Get donation amount from form
+        amount = request.form.get('amount', '').strip()
+        custom_amount = request.form.get('custom_amount', '').strip()
+        
+        # Validate amount
+        if custom_amount:
+            try:
+                amount_float = float(custom_amount)
+                if amount_float < 100:  # Minimum 100 naira (1 naira in kobo)
+                    flash('Minimum donation amount is ₦100.', 'danger')
+                    return render_template('donate.html')
+                amount_in_kobo = int(amount_float * 100)
+            except ValueError:
+                flash('Invalid donation amount.', 'danger')
+                return render_template('donate.html')
+        elif amount:
+            try:
+                amount_float = float(amount)
+                if amount_float < 100:
+                    flash('Minimum donation amount is ₦100.', 'danger')
+                    return render_template('donate.html')
+                amount_in_kobo = int(amount_float * 100)
+            except ValueError:
+                flash('Invalid donation amount.', 'danger')
+                return render_template('donate.html')
+        else:
+            flash('Please select or enter a donation amount.', 'danger')
+            return render_template('donate.html')
+        
+        # Get user email if authenticated, otherwise use a placeholder
+        if current_user.is_authenticated:
+            email = current_user.email
+            user_id = current_user.id
+        else:
+            # For non-authenticated users, require email
+            email = request.form.get('donor_email', '').strip()
+            if not email or '@' not in email:
+                flash('Please provide a valid email address.', 'danger')
+                return render_template('donate.html')
+            user_id = None
+        
+        # Create reference
+        reference = f"DON_{int(datetime.utcnow().timestamp())}"
+        
+        # Initialize Paystack payment
+        headers = {
+            'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'amount': amount_in_kobo,
+            'email': email,
+            'reference': reference,
+            'callback_url': f"{APP_URL}/donate/callback?amount={amount_float:.2f}",
+            'metadata': {
+                'user_id': user_id,
+                'donation_type': 'platform_support'
+            }
+        }
+        
+        try:
+            response = requests.post('https://api.paystack.co/transaction/initialize', 
+                                    json=payload, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status'):
+                    authorization_url = data['data']['authorization_url']
+                    session['donation_reference'] = reference
+                    session['donation_amount'] = amount_float
+                    return redirect(authorization_url)
+                else:
+                    flash('Payment initialization failed. Please try again.', 'danger')
+            else:
+                flash('Error initializing payment. Please try again.', 'danger')
+        except Exception as e:
+            print(f"Paystack error: {e}")
+            flash('Payment service unavailable. Please try again later.', 'danger')
+    
+    return render_template('donate.html', paystack_public_key=PAYSTACK_PUBLIC_KEY)
+
+@app.route('/donate/callback')
+def donation_callback():
+    """Handle donation payment callback"""
+    reference = request.args.get('reference')
+    amount = request.args.get('amount')
+    
+    if not reference:
+        flash('Payment reference not found.', 'danger')
+        return redirect(url_for('donate'))
+    
+    # Verify payment with Paystack
+    headers = {
+        'Authorization': f'Bearer {PAYSTACK_SECRET_KEY}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.get(f'https://api.paystack.co/transaction/verify/{reference}',
+                                headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('status') and data['data']['status'] == 'success':
+                # Payment successful
+                flash(f'Thank you for your donation of ₦{float(amount):,.2f}! Your support helps us grow and innovate. 🙏', 'success')
+                
+                # Log activity if user is authenticated
+                if db_connected and current_user.is_authenticated:
+                    try:
+                        activity = UserActivity(
+                            user_id=current_user.id,
+                            action='donation',
+                            description=f'Donated ₦{float(amount):,.2f} to support platform growth'
+                        )
+                        db.session.add(activity)
+                        db.session.commit()
+                    except Exception as e:
+                        print(f"Error logging donation activity: {e}")
+            else:
+                flash('Payment verification failed. Please contact support.', 'danger')
+        else:
+            flash('Could not verify payment. Please contact support.', 'danger')
+    except Exception as e:
+        print(f"Payment verification error: {e}")
+        flash('Payment verification error. Please contact support.', 'danger')
+    
+    return redirect(url_for('index'))
+
 # SocketIO events for real-time features
 @socketio.on('connect')
 def handle_connect():
