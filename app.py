@@ -1661,15 +1661,22 @@ def profile():
 @login_required
 def logout():
     """User logout"""
-    if current_user.is_authenticated and db_connected:
-        # Log activity
-        activity = UserActivity(
-            user_id=current_user.id,
-            action='logout',
-            description=f'User {current_user.username} logged out'
-        )
-        db.session.add(activity)
-        db.session.commit()
+    # Check if user is admin before logging activity
+    is_admin = current_user.__class__.__name__ == 'Admin'
+    
+    if current_user.is_authenticated and db_connected and not is_admin:
+        # Log activity only for regular users
+        try:
+            activity = UserActivity(
+                user_id=current_user.id,
+                action='logout',
+                description=f'User {current_user.username} logged out'
+            )
+            db.session.add(activity)
+            db.session.commit()
+        except Exception as e:
+            print(f"Error logging logout activity: {e}")
+            db.session.rollback()
     
     logout_user()
     flash('You have been logged out.', 'info')
@@ -2118,14 +2125,16 @@ def edit_post(post_id):
                 post.image_url = final_image_url
                 db.session.commit()
                 
-                # Log activity
-                activity = UserActivity(
-                    user_id=current_user.id,
-                    action='edit_post',
-                    description=f'User {current_user.username} edited blog post: {title[:50]}'
-                )
-                db.session.add(activity)
-                db.session.commit()
+                # Log activity only for regular users
+                is_admin = current_user.__class__.__name__ == 'Admin'
+                if not is_admin:
+                    activity = UserActivity(
+                        user_id=current_user.id,
+                        action='edit_post',
+                        description=f'User {current_user.username} edited blog post: {title[:50]}'
+                    )
+                    db.session.add(activity)
+                    db.session.commit()
                 
                 flash('Blog post updated successfully!', 'success')
                 return redirect(url_for('post_detail', post_id=post.id))
@@ -2161,13 +2170,12 @@ def delete_post(post_id):
         
         post_title = post.title
         
-        # Log activity
-        activity = UserActivity(
-            user_id=current_user.id,
-            action='delete_post',
-            description=f'User {current_user.username} deleted blog post: {post_title[:50]}'
-        )
-        db.session.add(activity)
+        # Log activity (note: admins can delete posts but shouldn't log to UserActivity)
+        # The check above ensures we're here as an admin, so skip logging to avoid FK errors
+        # Admin activities are not tracked in user_activities table
+        # if not is_admin:
+        #     activity = UserActivity(...)
+        #     db.session.add(activity)
         
         db.session.delete(post)
         db.session.commit()
@@ -3077,14 +3085,16 @@ def payment_callback(advert_id):
                 
                 flash(f'Payment successful! Your advert is now active and will run for {advert.weeks} week(s) until {advert.end_date.strftime("%B %d, %Y")}.', 'success')
                 
-                # Log activity
-                activity = UserActivity(
-                    user_id=current_user.id,
-                    action='advert_payment',
-                    description=f'Payment received and advert activated for {advert.weeks} week(s): {advert.title}'
-                )
-                db.session.add(activity)
-                db.session.commit()
+                # Log activity (admins don't use this route)
+                is_admin = current_user.__class__.__name__ == 'Admin'
+                if not is_admin:
+                    activity = UserActivity(
+                        user_id=current_user.id,
+                        action='advert_payment',
+                        description=f'Payment received and advert activated for {advert.weeks} week(s): {advert.title}'
+                    )
+                    db.session.add(activity)
+                    db.session.commit()
             else:
                 flash('Payment verification failed. Please contact support.', 'danger')
         else:
@@ -3209,18 +3219,20 @@ def donation_callback():
                 # Payment successful
                 flash(f'Thank you for your donation of ₦{float(amount):,.2f}! Your support helps us grow and innovate. 🙏', 'success')
                 
-                # Log activity if user is authenticated
+                # Log activity if user is authenticated and is a regular user (not admin)
                 if db_connected and current_user.is_authenticated:
-                    try:
-                        activity = UserActivity(
-                            user_id=current_user.id,
-                            action='donation',
-                            description=f'Donated ₦{float(amount):,.2f} to support platform growth'
-                        )
-                        db.session.add(activity)
-                        db.session.commit()
-                    except Exception as e:
-                        print(f"Error logging donation activity: {e}")
+                    is_admin = current_user.__class__.__name__ == 'Admin'
+                    if not is_admin:
+                        try:
+                            activity = UserActivity(
+                                user_id=current_user.id,
+                                action='donation',
+                                description=f'Donated ₦{float(amount):,.2f} to support platform growth'
+                            )
+                            db.session.add(activity)
+                            db.session.commit()
+                        except Exception as e:
+                            print(f"Error logging donation activity: {e}")
             else:
                 flash('Payment verification failed. Please contact support.', 'danger')
         else:
