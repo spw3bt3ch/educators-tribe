@@ -338,6 +338,25 @@ class AdvertPricing(db.Model):
     amount = db.Column(db.Numeric(10, 2), nullable=False, default=500.00)  # Price per week (default 500 naira)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+class TeacherOfTheMonth(db.Model):
+    __tablename__ = 'teacher_of_the_month'
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_name = db.Column(db.String(200), nullable=False)
+    teacher_title = db.Column(db.String(200), nullable=True)  # e.g., "Mathematics Teacher", "Principal"
+    school_name = db.Column(db.String(300), nullable=True)
+    location = db.Column(db.String(200), nullable=True)  # e.g., "Lagos, Nigeria"
+    photo_url = db.Column(db.String(1000), nullable=True)
+    bio = db.Column(db.Text, nullable=True)  # Short bio/description
+    achievements = db.Column(db.Text, nullable=True)  # List of achievements or accomplishments
+    is_active = db.Column(db.Boolean, default=True, nullable=False)  # Only one can be active at a time
+    month_year = db.Column(db.String(20), nullable=False)  # e.g., "November 2024"
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Link to User account (optional)
+    created_by = db.Column(db.Integer, db.ForeignKey('admins.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    creator = db.relationship('Admin', backref='created_teachers_of_month')
+    user = db.relationship('User', backref='teacher_of_month_awards')
+
 @login_manager.user_loader
 def load_user(user_id):
     """Load user from PostgreSQL - supports both User and Admin"""
@@ -1566,10 +1585,17 @@ def index():
     else:
         approved_adverts = []
     
+    # Get active Teacher of the Month
+    if db_connected:
+        teacher_of_month = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+    else:
+        teacher_of_month = None
+    
     return render_template('index.html', 
                          news_articles=news_articles, 
                          latest_posts=latest_posts,
                          approved_adverts=approved_adverts,
+                         teacher_of_month=teacher_of_month,
                          user=current_user if current_user.is_authenticated else None)
 
 @app.route('/contact')
@@ -1954,7 +1980,15 @@ def profile():
             flash('An error occurred while updating your profile. Please try again.', 'danger')
             return redirect(url_for('profile'))
     
-    return render_template('profile.html', user=current_user)
+    # Check if current user is Teacher of the Month
+    teacher_of_month = None
+    if not is_admin and db_connected:
+        teacher_of_month = TeacherOfTheMonth.query.filter_by(
+            user_id=current_user.id,
+            is_active=True
+        ).first()
+    
+    return render_template('profile.html', user=current_user, teacher_of_month=teacher_of_month)
 
 @app.route('/logout')
 @login_required
@@ -3286,6 +3320,260 @@ def admin_advert_pricing():
     
     current_amount = float(pricing.amount) if pricing else 0.00
     return render_template('admin_advert_pricing.html', current_amount=current_amount)
+
+@app.route('/admin/teacher-of-the-month', methods=['GET', 'POST'])
+@admin_required
+def admin_teacher_of_the_month():
+    """Admin - Manage Teacher of the Month"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            teacher_name = request.form.get('teacher_name', '').strip()
+            teacher_title = request.form.get('teacher_title', '').strip()
+            school_name = request.form.get('school_name', '').strip()
+            location = request.form.get('location', '').strip()
+            bio = request.form.get('bio', '').strip()
+            achievements = request.form.get('achievements', '').strip()
+            month_year = request.form.get('month_year', '').strip()
+            user_id = request.form.get('user_id', type=int)
+            photo_url = None
+            
+            # Validation
+            if not teacher_name:
+                flash('Teacher name is required.', 'danger')
+                active_teacher = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+                all_teachers = TeacherOfTheMonth.query.order_by(TeacherOfTheMonth.created_at.desc()).all()
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_teacher_of_month.html', 
+                                     active_teacher=active_teacher,
+                                     all_teachers=all_teachers,
+                                     users=users)
+            
+            if not month_year:
+                flash('Month and year is required (e.g., November 2024).', 'danger')
+                active_teacher = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+                all_teachers = TeacherOfTheMonth.query.order_by(TeacherOfTheMonth.created_at.desc()).all()
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_teacher_of_month.html', 
+                                     active_teacher=active_teacher,
+                                     all_teachers=all_teachers,
+                                     users=users)
+            
+            # Handle photo upload or URL
+            if 'photo_file' in request.files:
+                file = request.files['photo_file']
+                if file and file.filename:
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(file.filename)
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Upload to ImageKit
+                        photo_url = upload_image_to_imagekit(file, folder_name='teacher_of_month')
+                        if not photo_url:
+                            flash('Failed to upload photo. Please try again or use a photo URL.', 'warning')
+            
+            # If no file upload, check for photo URL
+            if not photo_url:
+                photo_url_input = request.form.get('photo_url', '').strip()
+                if photo_url_input:
+                    if not photo_url_input.startswith(('http://', 'https://')):
+                        flash('Please provide a valid photo URL starting with http:// or https://', 'danger')
+                        active_teacher = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+                        all_teachers = TeacherOfTheMonth.query.order_by(TeacherOfTheMonth.created_at.desc()).all()
+                        users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                        return render_template('admin_teacher_of_month.html', 
+                                             active_teacher=active_teacher,
+                                             all_teachers=all_teachers,
+                                             users=users)
+                    photo_url = photo_url_input
+            
+            # Deactivate all existing active teachers (only one can be active)
+            TeacherOfTheMonth.query.filter_by(is_active=True).update({'is_active': False})
+            
+            # Validate user if provided
+            user = None
+            if user_id:
+                user = User.query.get(user_id)
+                if not user:
+                    flash('Selected user not found.', 'danger')
+                    active_teacher = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+                    all_teachers = TeacherOfTheMonth.query.order_by(TeacherOfTheMonth.created_at.desc()).all()
+                    users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                    return render_template('admin_teacher_of_month.html', 
+                                         active_teacher=active_teacher,
+                                         all_teachers=all_teachers,
+                                         users=users)
+            
+            # Create new Teacher of the Month
+            teacher = TeacherOfTheMonth(
+                teacher_name=teacher_name,
+                teacher_title=teacher_title if teacher_title else None,
+                school_name=school_name if school_name else None,
+                location=location if location else None,
+                photo_url=photo_url if photo_url else None,
+                bio=bio if bio else None,
+                achievements=achievements if achievements else None,
+                month_year=month_year,
+                is_active=True,
+                user_id=user_id if user_id else None,
+                created_by=current_user.id
+            )
+            
+            db.session.add(teacher)
+            db.session.commit()
+            
+            flash(f'Teacher of the Month for {month_year} has been created successfully!', 'success')
+            return redirect(url_for('admin_teacher_of_the_month'))
+            
+        except Exception as e:
+            print(f"Error creating Teacher of the Month: {e}")
+            db.session.rollback()
+            flash('Error creating Teacher of the Month. Please try again.', 'danger')
+    
+    # Get active teacher
+    active_teacher = TeacherOfTheMonth.query.filter_by(is_active=True).first()
+    
+    # Get all past teachers (sorted by most recent)
+    all_teachers = TeacherOfTheMonth.query.order_by(TeacherOfTheMonth.created_at.desc()).all()
+    
+    # Get all active users for selection
+    users = User.query.filter_by(is_active=True).order_by(User.username).all()
+    
+    return render_template('admin_teacher_of_month.html', 
+                         active_teacher=active_teacher,
+                         all_teachers=all_teachers,
+                         users=users)
+
+@app.route('/admin/teacher-of-the-month/<int:teacher_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_teacher_of_the_month(teacher_id):
+    """Admin - Edit Teacher of the Month"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_teacher_of_the_month'))
+    
+    teacher = TeacherOfTheMonth.query.get_or_404(teacher_id)
+    
+    if request.method == 'POST':
+        try:
+            teacher.teacher_name = request.form.get('teacher_name', '').strip()
+            teacher.teacher_title = request.form.get('teacher_title', '').strip()
+            teacher.school_name = request.form.get('school_name', '').strip()
+            teacher.location = request.form.get('location', '').strip()
+            teacher.bio = request.form.get('bio', '').strip()
+            teacher.achievements = request.form.get('achievements', '').strip()
+            teacher.month_year = request.form.get('month_year', '').strip()
+            user_id = request.form.get('user_id', type=int)
+            
+            # Validation
+            if not teacher.teacher_name:
+                flash('Teacher name is required.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_edit_teacher_of_month.html', teacher=teacher, users=users)
+            
+            if not teacher.month_year:
+                flash('Month and year is required.', 'danger')
+                users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                return render_template('admin_edit_teacher_of_month.html', teacher=teacher, users=users)
+            
+            # Handle photo upload or URL
+            if 'photo_file' in request.files:
+                file = request.files['photo_file']
+                if file and file.filename:
+                    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                    filename = secure_filename(file.filename)
+                    
+                    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                        # Upload to ImageKit
+                        photo_url = upload_image_to_imagekit(file, folder_name='teacher_of_month')
+                        if photo_url:
+                            teacher.photo_url = photo_url
+            
+            # If no file upload, check for photo URL
+            if not teacher.photo_url or request.form.get('photo_url'):
+                photo_url_input = request.form.get('photo_url', '').strip()
+                if photo_url_input:
+                    if not photo_url_input.startswith(('http://', 'https://')):
+                        flash('Please provide a valid photo URL starting with http:// or https://', 'danger')
+                        users = User.query.filter_by(is_active=True).order_by(User.username).all()
+                        return render_template('admin_edit_teacher_of_month.html', teacher=teacher, users=users)
+                    teacher.photo_url = photo_url_input
+            
+            # Update user_id if provided
+            if user_id:
+                user = User.query.get(user_id)
+                if user:
+                    teacher.user_id = user_id
+                else:
+                    flash('Selected user not found. Other updates saved.', 'warning')
+            else:
+                # Clear user_id if no user selected (empty string becomes None with type=int)
+                teacher.user_id = None
+            
+            teacher.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            flash('Teacher of the Month has been updated successfully!', 'success')
+            return redirect(url_for('admin_teacher_of_the_month'))
+            
+        except Exception as e:
+            print(f"Error updating Teacher of the Month: {e}")
+            db.session.rollback()
+            flash('Error updating Teacher of the Month. Please try again.', 'danger')
+    
+    return render_template('admin_edit_teacher_of_month.html', teacher=teacher)
+
+@app.route('/admin/teacher-of-the-month/<int:teacher_id>/delete', methods=['POST'])
+@admin_required
+def delete_teacher_of_the_month(teacher_id):
+    """Admin - Delete Teacher of the Month"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_teacher_of_the_month'))
+    
+    teacher = TeacherOfTheMonth.query.get_or_404(teacher_id)
+    teacher_name = teacher.teacher_name
+    
+    try:
+        db.session.delete(teacher)
+        db.session.commit()
+        flash(f'Teacher of the Month "{teacher_name}" has been deleted successfully.', 'success')
+    except Exception as e:
+        print(f"Error deleting Teacher of the Month: {e}")
+        db.session.rollback()
+        flash('Error deleting Teacher of the Month. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_teacher_of_the_month'))
+
+@app.route('/admin/teacher-of-the-month/<int:teacher_id>/activate', methods=['POST'])
+@admin_required
+def activate_teacher_of_the_month(teacher_id):
+    """Admin - Activate Teacher of the Month (deactivates all others)"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_teacher_of_the_month'))
+    
+    teacher = TeacherOfTheMonth.query.get_or_404(teacher_id)
+    
+    try:
+        # Deactivate all other teachers
+        TeacherOfTheMonth.query.filter(TeacherOfTheMonth.id != teacher_id).update({'is_active': False})
+        
+        # Activate this teacher
+        teacher.is_active = True
+        teacher.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        flash(f'Teacher of the Month "{teacher.teacher_name}" has been activated successfully!', 'success')
+    except Exception as e:
+        print(f"Error activating Teacher of the Month: {e}")
+        db.session.rollback()
+        flash('Error activating Teacher of the Month. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_teacher_of_the_month'))
 
 @app.route('/advert/<int:advert_id>/pay', methods=['GET', 'POST'])
 @login_required
