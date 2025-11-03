@@ -960,6 +960,110 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Helper function to detect if text is in English
+def is_english_text(text):
+    """Check if text is primarily in English"""
+    if not text or len(text.strip()) < 10:
+        return False
+    
+    # Check for HTML lang attribute if present
+    # Remove HTML tags first
+    from bs4 import BeautifulSoup
+    if isinstance(text, str) and ('<' in text and '>' in text):
+        soup = BeautifulSoup(text, 'html.parser')
+        # Check lang attribute if present
+        html_tag = soup.find('html')
+        if html_tag and html_tag.get('lang'):
+            lang = html_tag.get('lang').lower()
+            return lang.startswith('en')
+    
+    # Basic heuristics: check for common English patterns
+    # Count alphabetic characters vs non-ASCII
+    text_clean = text.strip()
+    if not text_clean:
+        return False
+    
+    # Count ASCII characters (basic English detection)
+    ascii_count = sum(1 for c in text_clean if ord(c) < 128)
+    total_chars = len([c for c in text_clean if c.isalnum() or c.isspace()])
+    
+    if total_chars == 0:
+        return False
+    
+    # If more than 95% are ASCII, likely English
+    ascii_ratio = ascii_count / total_chars if total_chars > 0 else 0
+    
+    # Also check for common non-English patterns
+    # Common non-English characters in various scripts
+    non_english_patterns = [
+        '\u0600-\u06FF',  # Arabic
+        '\u4E00-\u9FFF',  # Chinese
+        '\u3040-\u309F',  # Hiragana
+        '\u30A0-\u30FF',  # Katakana
+        '\u0400-\u04FF',  # Cyrillic
+        '\u0590-\u05FF',  # Hebrew
+    ]
+    
+    import re
+    for pattern in non_english_patterns:
+        if re.search(f'[{pattern}]', text_clean):
+            return False
+    
+    # Return True if ASCII ratio is high and no non-English patterns found
+    return ascii_ratio >= 0.85
+
+# Helper function to check if article content is education-related
+def is_education_content(text, title):
+    """Check if article is education-related by examining title and content"""
+    if not text and not title:
+        return False
+    
+    # Updated education keywords - more comprehensive and focused
+    education_keywords = [
+        'education', 'school', 'student', 'teacher', 'teaching', 'university', 'college',
+        'academic', 'curriculum', 'learning', 'learn', 'classroom', 'pedagogy', 'instruction',
+        'educator', 'professor', 'lecturer', 'principal', 'superintendent', 'administrator',
+        'elementary', 'secondary', 'high school', 'middle school', 'kindergarten', 'preschool',
+        'exam', 'examination', 'test', 'assessment', 'grading', 'grade', 'diploma', 'degree',
+        'scholarship', 'tuition', 'fee', 'enrollment', 'admission', 'applicant',
+        'campus', 'campus life', 'student body', 'alumni', 'graduate', 'graduation',
+        'literacy', 'reading', 'writing', 'mathematics', 'science', 'history', 'language',
+        'education policy', 'education reform', 'education system', 'school district',
+        'boarding school', 'public school', 'private school', 'charter school',
+        'homeschool', 'homeschooling', 'distance learning', 'online learning', 'e-learning',
+        'textbook', 'course', 'syllabus', 'lesson', 'assignment', 'homework', 'project',
+        'study', 'research', 'thesis', 'dissertation', 'essay', 'paper'
+    ]
+    
+    # Exclude words that suggest non-education topics
+    exclude_keywords = [
+        'sports', 'entertainment', 'politics', 'technology', 'business', 'finance',
+        'economy', 'stock market', 'celebrity', 'movie', 'music', 'game', 'gaming',
+        'fashion', 'beauty', 'food', 'recipe', 'cooking', 'travel', 'tourism',
+        'health', 'medical', 'drug', 'pharmaceutical', 'weather', 'climate',
+        'automotive', 'car', 'vehicle', 'real estate', 'property'
+    ]
+    
+    # Combine title and text for checking
+    combined_text = f"{title} {text}".lower() if title and text else (title or text or "").lower()
+    
+    if not combined_text:
+        return False
+    
+    # Check for exclude keywords first - if found, likely not education
+    for exclude in exclude_keywords:
+        if exclude in combined_text:
+            # Allow only if it's clearly education context (e.g., "education policy")
+            if exclude == 'policy' and 'education' in combined_text:
+                continue
+            return False
+    
+    # Check for education keywords - need at least one strong match
+    education_match_count = sum(1 for keyword in education_keywords if keyword in combined_text)
+    
+    # Require at least one education keyword match
+    return education_match_count > 0
+
 # Helper function to extract featured image from article page
 def extract_featured_image_from_article(article_url, headers):
     """Fetch article page and extract featured image from meta tags and content"""
@@ -1104,11 +1208,6 @@ def fetch_education_news():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     
-    education_keywords = ['education', 'teacher', 'school', 'university', 'student', 'teaching', 'learn', 
-                         'nigeria', 'nigerian', 'academic', 'curriculum', 'examination', 'exam', 'graduate',
-                         'scholarship', 'education ministry', 'WAEC', 'JAMB', 'UNILAG', 'ABU', 'LASU', 'polytechnic',
-                         'college', 'tuition', 'scholarship', 'bursary', 'education board']
-    
     total_articles = 0
     
     with app.app_context():
@@ -1184,96 +1283,112 @@ def fetch_education_news():
                         if not title or len(title) < 15:
                             continue
                         
-                        # Since we're on education category pages, assume articles are education-related
-                        # But still check for relevance
-                        title_lower = title.lower()
-                        is_education = any(keyword in title_lower for keyword in education_keywords)
+                        # Check if title is in English - strict requirement
+                        if not is_english_text(title):
+                            continue  # Skip non-English articles
                         
-                        # For education category pages, be more lenient
-                        # If the source URL contains 'education', accept most articles
-                        is_education_category = 'education' in source_url.lower()
-                        
-                        if not is_education and is_education_category:
-                            # On education category pages, check surrounding context more leniently
-                            parent = link.parent
-                            check_depth = 0
-                            while parent and not is_education and check_depth < 5:
-                                parent_text = parent.get_text(strip=True).lower()
-                                if len(parent_text) > 30:  # More lenient - check smaller text blocks
-                                    is_education = any(keyword in parent_text for keyword in education_keywords)
-                                parent = parent.parent
-                                check_depth += 1
-                                if parent and parent.name == 'body':  # Stop at body
-                                    break
-                        
-                        # On education category pages, accept most articles unless clearly not education
-                        if is_education_category and not is_education:
-                            # Check if title contains clearly non-education words
-                            exclude_words = ['sports', 'entertainment', 'politics', 'technology', 'business']
-                            if not any(exclude in title_lower for exclude in exclude_words):
-                                # Accept it if we're on an education category page
-                                is_education = True
-                        
-                        if is_education:
-                            # Try to find image from listing page first
-                            image_url = None
-                            
-                            # Check link for img
-                            img_tag = link.find('img')
-                            if img_tag:
-                                image_url = img_tag.get('src') or img_tag.get('data-src') or img_tag.get('data-lazy-src') or img_tag.get('data-original')
-                            
-                            # Check parent for img
-                            if not image_url:
-                                parent = link.parent
-                                for _ in range(3):  # Check up to 3 levels up
-                                    if parent:
-                                        parent_img = parent.find('img')
-                                        if parent_img:
-                                            image_url = parent_img.get('src') or parent_img.get('data-src') or parent_img.get('data-lazy-src') or parent_img.get('data-original')
-                                            if image_url:
-                                                break
-                                        parent = parent.parent
-                            
-                            # Resolve relative image URLs
-                            if image_url and not image_url.startswith('http'):
-                                image_url = urljoin(source_url, image_url)
-                            
-                            # If no image found from listing page, fetch from article page
-                            if not image_url:
-                                image_url = extract_featured_image_from_article(full_url, headers)
-                            
-                            # Skip if title is too short or empty (filter empty articles)
-                            if not title or len(title.strip()) < 15:
-                                continue
-                            
-                            # Check if article already exists
-                            existing = NewsArticle.query.filter_by(source_url=full_url).first()
-                            if not existing:
-                                # Create new article
-                                article = NewsArticle(
-                                    title=title[:500],  # Limit title length
-                                    source_url=full_url,
-                                    image_url=image_url[:1000] if image_url else None,  # Limit URL length
-                                    category='Education',
-                                    published_at=datetime.utcnow(),
-                                    fetched_at=datetime.utcnow(),
-                                    is_education_related=True
-                                )
-                                articles.append(article)
+                        # Fetch article page to verify content is in English and education-related
+                        article_content = None
+                        try:
+                            article_response = requests.get(full_url, headers=headers, timeout=10)
+                            if article_response.status_code == 200:
+                                article_soup = BeautifulSoup(article_response.content, 'html.parser')
+                                # Extract article content
+                                # Try to find main content area
+                                main_content = article_soup.find('article') or \
+                                             article_soup.find('main') or \
+                                             article_soup.find('div', class_=lambda x: x and ('article' in str(x).lower() or 'content' in str(x).lower())) or \
+                                             article_soup.find('div', id=lambda x: x and ('article' in str(x).lower() or 'content' in str(x).lower()))
+                                
+                                if main_content:
+                                    # Get text content
+                                    article_content = main_content.get_text(separator=' ', strip=True)
+                                
+                                # If no main content found, get body text
+                                if not article_content:
+                                    body = article_soup.find('body')
+                                    if body:
+                                        # Remove script and style tags
+                                        for script in body(["script", "style", "nav", "header", "footer"]):
+                                            script.decompose()
+                                        article_content = body.get_text(separator=' ', strip=True)
+                                
+                                # Verify article content is in English
+                                if article_content and not is_english_text(article_content[:500]):  # Check first 500 chars
+                                    continue  # Skip non-English articles
+                                
+                                # Verify article is education-related using strict check
+                                if not is_education_content(article_content, title):
+                                    continue  # Skip non-education articles
                             else:
-                                # Article exists - update image if it doesn't have one
-                                if not existing.image_url and image_url:
-                                    existing.image_url = image_url[:1000]
-                                    existing.fetched_at = datetime.utcnow()
-                                    db.session.commit()
-                                # Keep it in potential list for fallback
-                                potential_article = {
-                                    'title': title[:500],
-                                    'source_url': full_url,
-                                    'image_url': image_url[:1000] if image_url else None
-                                }
-                                articles.append(potential_article)
+                                # If can't fetch article, at least verify title is education-related
+                                if not is_education_content(None, title):
+                                    continue  # Skip non-education articles
+                        except Exception as e:
+                            # If error fetching article, verify at least title is education-related
+                            if not is_education_content(None, title):
+                                continue  # Skip non-education articles
+                        
+                        # If we get here, article passed all checks (English + Education)
+                        # Try to find image from listing page first
+                        image_url = None
+                        
+                        # Check link for img
+                        img_tag = link.find('img')
+                        if img_tag:
+                            image_url = img_tag.get('src') or img_tag.get('data-src') or img_tag.get('data-lazy-src') or img_tag.get('data-original')
+                        
+                        # Check parent for img
+                        if not image_url:
+                            parent = link.parent
+                            for _ in range(3):  # Check up to 3 levels up
+                                if parent:
+                                    parent_img = parent.find('img')
+                                    if parent_img:
+                                        image_url = parent_img.get('src') or parent_img.get('data-src') or parent_img.get('data-lazy-src') or parent_img.get('data-original')
+                                        if image_url:
+                                            break
+                                    parent = parent.parent
+                        
+                        # Resolve relative image URLs
+                        if image_url and not image_url.startswith('http'):
+                            image_url = urljoin(source_url, image_url)
+                        
+                        # If no image found from listing page, fetch from article page
+                        if not image_url:
+                            image_url = extract_featured_image_from_article(full_url, headers)
+                        
+                        # Skip if title is too short or empty (filter empty articles)
+                        if not title or len(title.strip()) < 15:
+                            continue
+                        
+                        # Check if article already exists
+                        existing = NewsArticle.query.filter_by(source_url=full_url).first()
+                        if not existing:
+                            # Create new article
+                            article = NewsArticle(
+                                title=title[:500],  # Limit title length
+                                source_url=full_url,
+                                image_url=image_url[:1000] if image_url else None,  # Limit URL length
+                                category='Education',
+                                published_at=datetime.utcnow(),
+                                fetched_at=datetime.utcnow(),
+                                is_education_related=True
+                            )
+                            articles.append(article)
+                        else:
+                            # Article exists - update image if it doesn't have one
+                            if not existing.image_url and image_url:
+                                existing.image_url = image_url[:1000]
+                                existing.fetched_at = datetime.utcnow()
+                                db.session.commit()
+                            # Keep it in potential list for fallback
+                            potential_article = {
+                                'title': title[:500],
+                                'source_url': full_url,
+                                'image_url': image_url[:1000] if image_url else None
+                            }
+                            articles.append(potential_article)
                     except Exception as e:
                         continue  # Skip problematic links
                 
