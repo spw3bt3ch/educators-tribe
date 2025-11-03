@@ -2404,13 +2404,26 @@ def add_comment(post_id):
 @app.route('/blog/post/<int:post_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_post(post_id):
-    """Edit a blog post - All users and admins can edit any post"""
+    """Edit a blog post - Users can only edit their own posts, admins cannot edit posts"""
     if not db_connected:
         flash('Database not available. Please try again later.', 'danger')
         return redirect(url_for('index'))
     
     try:
         post = BlogPost.query.get_or_404(post_id)
+        
+        # Check if user is an admin
+        is_admin = current_user.__class__.__name__ == 'Admin'
+        
+        # Admins cannot edit posts
+        if is_admin:
+            flash('Admins cannot edit posts.', 'danger')
+            return redirect(url_for('post_detail', post_id=post_id))
+        
+        # Regular users can only edit their own posts
+        if current_user.id != post.author_id:
+            flash('You do not have permission to edit this post. You can only edit your own posts.', 'danger')
+            return redirect(url_for('post_detail', post_id=post_id))
         
         if request.method == 'POST':
             title = request.form.get('title', '').strip()
@@ -2457,16 +2470,14 @@ def edit_post(post_id):
                 post.image_url = final_image_url
                 db.session.commit()
                 
-                # Log activity only for regular users
-                is_admin = current_user.__class__.__name__ == 'Admin'
-                if not is_admin:
-                    activity = UserActivity(
-                        user_id=current_user.id,
-                        action='edit_post',
-                        description=f'User {current_user.username} edited blog post: {title[:50]}'
-                    )
-                    db.session.add(activity)
-                    db.session.commit()
+                # Log activity
+                activity = UserActivity(
+                    user_id=current_user.id,
+                    action='edit_post',
+                    description=f'User {current_user.username} edited blog post: {title[:50]}'
+                )
+                db.session.add(activity)
+                db.session.commit()
                 
                 flash('Blog post updated successfully!', 'success')
                 return redirect(url_for('post_detail', post_id=post.id))
