@@ -960,6 +960,134 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Helper function to extract featured image from article page
+def extract_featured_image_from_article(article_url, headers):
+    """Fetch article page and extract featured image from meta tags and content"""
+    try:
+        response = requests.get(article_url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            return None
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        image_url = None
+        
+        # Try Open Graph meta tag (og:image)
+        og_image = soup.find('meta', property='og:image')
+        if og_image and og_image.get('content'):
+            image_url = og_image.get('content')
+            if image_url and not image_url.startswith('http'):
+                from urllib.parse import urljoin, urlparse
+                base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                image_url = urljoin(base_url, image_url)
+            return image_url
+        
+        # Try Twitter card meta tag (twitter:image)
+        twitter_image = soup.find('meta', attrs={'name': 'twitter:image'})
+        if twitter_image and twitter_image.get('content'):
+            image_url = twitter_image.get('content')
+            if image_url and not image_url.startswith('http'):
+                from urllib.parse import urljoin, urlparse
+                base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                image_url = urljoin(base_url, image_url)
+            return image_url
+        
+        # Try article schema markup
+        article_schema = soup.find('script', type='application/ld+json')
+        if article_schema:
+            try:
+                import json
+                schema_data = json.loads(article_schema.string)
+                # Handle both single objects and arrays
+                if isinstance(schema_data, list):
+                    schema_data = schema_data[0] if schema_data else {}
+                
+                # Check for image in schema
+                if isinstance(schema_data, dict):
+                    # Try different possible keys
+                    for key in ['image', 'thumbnailUrl', 'url']:
+                        if key in schema_data:
+                            img = schema_data[key]
+                            if isinstance(img, dict) and 'url' in img:
+                                image_url = img['url']
+                            elif isinstance(img, str):
+                                image_url = img
+                            elif isinstance(img, list) and len(img) > 0:
+                                if isinstance(img[0], dict) and 'url' in img[0]:
+                                    image_url = img[0]['url']
+                                elif isinstance(img[0], str):
+                                    image_url = img[0]
+                            
+                            if image_url:
+                                if not image_url.startswith('http'):
+                                    from urllib.parse import urljoin, urlparse
+                                    base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                                    image_url = urljoin(base_url, image_url)
+                                return image_url
+            except (json.JSONDecodeError, KeyError, IndexError):
+                pass
+        
+        # Try to find featured image in article content
+        # Look for common featured image selectors
+        featured_selectors = [
+            '.featured-image img',
+            '.post-featured-image img',
+            '.article-featured-image img',
+            '.entry-featured-image img',
+            'article img:first-of-type',
+            '.article-content img:first-of-type',
+            '.post-content img:first-of-type',
+            'figure img',
+            'picture img'
+        ]
+        
+        for selector in featured_selectors:
+            img = soup.select_one(selector)
+            if img:
+                image_url = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+                if image_url:
+                    if not image_url.startswith('http'):
+                        from urllib.parse import urljoin, urlparse
+                        base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                        image_url = urljoin(base_url, image_url)
+                    return image_url
+        
+        # Fallback: get the first large image in article or main content
+        main_content = soup.find('article') or soup.find('main') or soup.find('div', class_=lambda x: x and ('article' in x.lower() or 'content' in x.lower()))
+        if main_content:
+            images = main_content.find_all('img')
+            for img in images:
+                # Skip small images (likely icons, logos, etc.)
+                width = img.get('width')
+                height = img.get('height')
+                if width and height:
+                    try:
+                        if int(width) > 200 and int(height) > 200:
+                            image_url = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+                            if image_url:
+                                if not image_url.startswith('http'):
+                                    from urllib.parse import urljoin, urlparse
+                                    base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                                    image_url = urljoin(base_url, image_url)
+                                return image_url
+                    except (ValueError, TypeError):
+                        pass
+                
+                # If no dimensions, check srcset or take the first reasonable image
+                if not image_url:
+                    image_url = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+                    if image_url and not any(skip in image_url.lower() for skip in ['logo', 'icon', 'avatar', 'button']):
+                        if not image_url.startswith('http'):
+                            from urllib.parse import urljoin, urlparse
+                            base_url = f"{urlparse(article_url).scheme}://{urlparse(article_url).netloc}"
+                            image_url = urljoin(base_url, image_url)
+                        return image_url
+        
+    except Exception as e:
+        print(f"  ⚠ Error extracting featured image from {article_url}: {e}")
+        return None
+    
+    return None
+
 # News fetching function
 def fetch_education_news():
     """Fetch education-related news from multiple Nigeria education sources"""
@@ -1087,7 +1215,7 @@ def fetch_education_news():
                                 is_education = True
                         
                         if is_education:
-                            # Try to find image
+                            # Try to find image from listing page first
                             image_url = None
                             
                             # Check link for img
@@ -1111,6 +1239,10 @@ def fetch_education_news():
                             if image_url and not image_url.startswith('http'):
                                 image_url = urljoin(source_url, image_url)
                             
+                            # If no image found from listing page, fetch from article page
+                            if not image_url:
+                                image_url = extract_featured_image_from_article(full_url, headers)
+                            
                             # Skip if title is too short or empty (filter empty articles)
                             if not title or len(title.strip()) < 15:
                                 continue
@@ -1130,7 +1262,12 @@ def fetch_education_news():
                                 )
                                 articles.append(article)
                             else:
-                                # Article exists, but keep it in potential list for fallback
+                                # Article exists - update image if it doesn't have one
+                                if not existing.image_url and image_url:
+                                    existing.image_url = image_url[:1000]
+                                    existing.fetched_at = datetime.utcnow()
+                                    db.session.commit()
+                                # Keep it in potential list for fallback
                                 potential_article = {
                                     'title': title[:500],
                                     'source_url': full_url,
