@@ -97,6 +97,11 @@ def datetime_filter(value, format='%Y-%m-%d'):
             return value[:10] if len(value) >= 10 else value
     return value
 
+# Context processor to make APP_URL available to all templates
+@app.context_processor
+def inject_app_url():
+    return dict(app_url=APP_URL)
+
 # Helper function to upload image to ImageKit with local fallback
 def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_local=True):
     """
@@ -1879,10 +1884,6 @@ def api_fetch_news():
 @app.route('/blog', methods=['GET'])
 def blog():
     """View all blog posts"""
-    if not db_connected:
-        flash('Database not available. Please try again later.', 'danger')
-        return redirect(url_for('index'))
-    
     # Pagination
     page = request.args.get('page', 1, type=int)
     per_page = 12
@@ -1898,7 +1899,8 @@ def blog():
         pagination = None
     
     # Get active adverts for sidebar (not expired) - cleanup before querying
-    if db_connected:
+    approved_adverts = []
+    try:
         cleanup_expired_adverts()
         now = datetime.utcnow()
         # Include both 'active' and 'approved' status for backwards compatibility
@@ -1910,8 +1912,8 @@ def blog():
         ).order_by(
             nullslast(Advert.start_date.desc())  # Handle NULL start_date
         ).limit(5).all()
-    else:
-        approved_adverts = []
+    except Exception as e:
+        print(f"Error fetching approved adverts: {e}")
     
     return render_template('blog.html', posts=posts, pagination=pagination, approved_adverts=approved_adverts)
 
