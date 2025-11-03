@@ -11,6 +11,8 @@ A real-time Flask-based blog platform for Nigerian teachers featuring education 
 - 🔄 **Real-time Features** - WebSocket support using Flask-SocketIO
 - 📊 **User Management** - Admin can activate/deactivate users
 - 📈 **Activity Tracking** - Monitor user activities and statistics
+- 💳 **Payment Integration** - Paystack integration for advertisements and donations
+- ☕ **Donation Support** - Users can donate any amount to support platform growth
 
 ## Installation
 
@@ -50,6 +52,9 @@ The application uses PostgreSQL by default (configured for production). For prod
 - `IMAGEKIT_PRIVATE_KEY` - ImageKit private key for image uploads (defaults to hardcoded value)
 - `IMAGEKIT_PUBLIC_KEY` - ImageKit public key
 - `IMAGEKIT_URL_ENDPOINT` - ImageKit URL endpoint
+- `PAYSTACK_PUBLIC_KEY` - Paystack public key for payment processing
+- `PAYSTACK_SECRET_KEY` - Paystack secret key for payment processing
+- `CREATE_DEMO_USERS` - Set to 'true' to create demo users on startup (default: false for production)
 
 Example (local development):
 ```bash
@@ -69,8 +74,29 @@ The application is configured to deploy on Vercel. After deploying, set these en
    - `IMAGEKIT_PRIVATE_KEY` - Your ImageKit private key (if different from default)
    - `IMAGEKIT_PUBLIC_KEY` - Your ImageKit public key (if different from default)
    - `IMAGEKIT_URL_ENDPOINT` - Your ImageKit URL endpoint (if different from default)
+   - `PAYSTACK_PUBLIC_KEY` - Your Paystack public key (for advertisements and donations)
+   - `PAYSTACK_SECRET_KEY` - Your Paystack secret key (for advertisements and donations)
 
 **Note:** The ImageKit credentials are already configured in the code. If you want to use your own ImageKit account, update the environment variables.
+
+**Important:** By default, demo users are NOT created on Vercel to prevent them from reappearing after deletion. To enable demo users in production, set `CREATE_DEMO_USERS=true`.
+
+### How File Uploads Work
+
+The application uses **ImageKit** for cloud-based image storage, which is essential for serverless deployments like Vercel:
+
+1. **ImageKit Cloud Storage**: All uploaded images (profile pictures, blog post images, advertisement images) are stored on ImageKit's cloud servers.
+2. **Database Storage**: Only the ImageKit URLs are stored in your PostgreSQL database (Render).
+3. **Vercel Compatibility**: ImageKit works perfectly on Vercel's serverless functions because:
+   - Images are uploaded directly from the serverless function to ImageKit
+   - No local file system is required
+   - Images persist even when Vercel functions restart
+4. **Fallback for Local Development**: In local development, if ImageKit is unavailable, images are saved to `static/images/` (but this fallback doesn't work on Vercel due to ephemeral filesystem).
+
+**Why this works on Vercel + Render:**
+- ✅ **Vercel**: Serverless functions handle the upload request and send to ImageKit
+- ✅ **Render PostgreSQL**: Stores only the ImageKit URL strings (text data)
+- ✅ **ImageKit**: Hosts and delivers all images via CDN
 
 ## Running the Application
 
