@@ -969,14 +969,7 @@ def fetch_education_news():
     
     # List of news sources
     news_sources = [
-        'https://education.gov.ng/category/latest-news/',
-        'https://guardian.ng/category/education/',
-        'https://punchng.com/topics/education/',
-        'https://tribuneonlineng.com/category/education/',
-        'https://www.legit.ng/education/',
-        'https://dailytrust.com/topics/education/',
-        'https://www.nerdc.gov.ng/',
-        'https://thenigeriaeducationnews.com'
+        'https://apnews.com/education'
     ]
     
     headers = {
@@ -2843,13 +2836,18 @@ def admin_create_post():
     # Try to find existing admin user account
     admin_user = User.query.filter_by(username=admin_username).first()
     
+    # If found but has old "(Admin Blogger)" format, update it
+    if admin_user and admin_user.full_name and '(Admin Blogger)' in admin_user.full_name:
+        admin_user.full_name = admin_username.title()
+        db.session.commit()
+    
     # If not found, create one for blog posts
     if not admin_user:
         try:
             admin_user = User(
                 username=admin_username,
                 email=admin_email,
-                full_name=f'{admin_username.title()} (Admin Blogger)',
+                full_name=admin_username.title(),
                 is_active=True,
                 email_verified=True
             )
@@ -2862,11 +2860,15 @@ def admin_create_post():
             # If username exists, try with admin prefix
             admin_username = f'admin_blogger'
             admin_user = User.query.filter_by(username=admin_username).first()
+            # If found but has old "(Admin Blogger)" format, update it
+            if admin_user and admin_user.full_name and '(Admin Blogger)' in admin_user.full_name:
+                admin_user.full_name = 'Admin'
+                db.session.commit()
             if not admin_user:
                 admin_user = User(
                     username=admin_username,
                     email='admin@teacherstribe.com',
-                    full_name='Admin Blogger',
+                    full_name='Admin',
                     is_active=True,
                     email_verified=True
                 )
@@ -3399,41 +3401,47 @@ def init_db():
             except Exception as e:
                 print(f"⚠ Migration check failed (this is OK if column already exists): {e}")
             
-            # Create demo users
-            demo_users = [
-                {'username': 'teacher_john', 'email': 'john.teacher@example.com', 'full_name': 'John Teacher', 'password': 'demo123'},
-                {'username': 'educator_mary', 'email': 'mary.educator@example.com', 'full_name': 'Mary Educator', 'password': 'demo123'},
-                {'username': 'professor_david', 'email': 'david.prof@example.com', 'full_name': 'Professor David', 'password': 'demo123'},
-            ]
+            # Create demo users (only in development/local mode)
+            # Skip in production/Vercel to prevent demo users from being recreated
+            create_demo_users = os.environ.get('CREATE_DEMO_USERS', 'false').lower() in ('true', '1', 'yes')
             
-            for user_data in demo_users:
-                existing_user = User.query.filter_by(username=user_data['username']).first()
-                if not existing_user:
-                    user = User(
-                        username=user_data['username'],
-                        email=user_data['email'],
-                        full_name=user_data['full_name'],
-                        is_active=True
-                    )
-                    user.set_password(user_data['password'])
-                    db.session.add(user)
-                    db.session.commit()
-                    print(f"Demo user created: {user_data['username']} / {user_data['password']}")
-            
-            print("\n" + "=" * 60)
-            print("DEMO CREDENTIALS:")
-            print("-" * 60)
-            print("ADMIN:")
-            print("  Username: admin")
-            print("  Password: admin123")
-            print("\nDEMO USERS:")
-            for user_data in demo_users:
-                print(f"  Username: {user_data['username']}")
-                print(f"  Password: {user_data['password']}")
-                print(f"  Name: {user_data['full_name']}")
-                print(f"  Email: {user_data['email']}")
-                print()
-            print("=" * 60)
+            if create_demo_users:
+                demo_users = [
+                    {'username': 'teacher_john', 'email': 'john.teacher@example.com', 'full_name': 'John Teacher', 'password': 'demo123'},
+                    {'username': 'educator_mary', 'email': 'mary.educator@example.com', 'full_name': 'Mary Educator', 'password': 'demo123'},
+                    {'username': 'professor_david', 'email': 'david.prof@example.com', 'full_name': 'Professor David', 'password': 'demo123'},
+                ]
+                
+                for user_data in demo_users:
+                    existing_user = User.query.filter_by(username=user_data['username']).first()
+                    if not existing_user:
+                        user = User(
+                            username=user_data['username'],
+                            email=user_data['email'],
+                            full_name=user_data['full_name'],
+                            is_active=True
+                        )
+                        user.set_password(user_data['password'])
+                        db.session.add(user)
+                        db.session.commit()
+                        print(f"Demo user created: {user_data['username']} / {user_data['password']}")
+                
+                print("\n" + "=" * 60)
+                print("DEMO CREDENTIALS:")
+                print("-" * 60)
+                print("ADMIN:")
+                print("  Username: admin")
+                print("  Password: admin123")
+                print("\nDEMO USERS:")
+                for user_data in demo_users:
+                    print(f"  Username: {user_data['username']}")
+                    print(f"  Password: {user_data['password']}")
+                    print(f"  Name: {user_data['full_name']}")
+                    print(f"  Email: {user_data['email']}")
+                    print()
+                print("=" * 60)
+            else:
+                print("⚠ Demo users creation skipped (set CREATE_DEMO_USERS=true to enable)")
             
             # Initial news fetch
             try:
