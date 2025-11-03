@@ -3992,6 +3992,49 @@ def init_db():
             except Exception as e:
                 print(f"⚠ Migration check failed (this is OK if column already exists): {e}")
             
+            # Migrate: Add user_id column to teacher_of_the_month if it doesn't exist
+            try:
+                with db.engine.connect() as conn:
+                    result = conn.execute(text("""
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name='teacher_of_the_month' AND column_name='user_id'
+                    """))
+                    column_exists = result.fetchone() is not None
+                    
+                    if not column_exists:
+                        print("⚠ Migrating teacher_of_the_month table: adding user_id column...")
+                        # First add the column
+                        conn.execute(text("ALTER TABLE teacher_of_the_month ADD COLUMN user_id INTEGER"))
+                        conn.commit()
+                        
+                        # Check if foreign key constraint already exists before adding it
+                        try:
+                            fk_result = conn.execute(text("""
+                                SELECT constraint_name
+                                FROM information_schema.table_constraints
+                                WHERE table_name='teacher_of_the_month' 
+                                AND constraint_name='fk_teacher_of_month_user'
+                            """))
+                            fk_exists = fk_result.fetchone() is not None
+                            
+                            if not fk_exists:
+                                # Add foreign key constraint
+                                conn.execute(text("""
+                                    ALTER TABLE teacher_of_the_month 
+                                    ADD CONSTRAINT fk_teacher_of_month_user 
+                                    FOREIGN KEY (user_id) REFERENCES users(id)
+                                """))
+                                conn.commit()
+                        except Exception as fk_error:
+                            print(f"⚠ Could not add foreign key constraint (may already exist): {fk_error}")
+                        
+                        print("✓ Migration complete: user_id column added to teacher_of_the_month")
+                    else:
+                        print("✓ user_id column already exists in teacher_of_the_month")
+            except Exception as e:
+                print(f"⚠ Migration check failed (this is OK if column already exists): {e}")
+            
             # Create demo users (only in development/local mode)
             # Skip in production/Vercel to prevent demo users from being recreated
             create_demo_users = os.environ.get('CREATE_DEMO_USERS', 'false').lower() in ('true', '1', 'yes')
