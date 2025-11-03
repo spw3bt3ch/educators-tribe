@@ -1012,13 +1012,33 @@ def is_english_text(text):
     # Return True if ASCII ratio is high and no non-English patterns found
     return ascii_ratio >= 0.85
 
-# Helper function to check if article content is education-related
+# Helper function to check if article content is African Education-related
 def is_education_content(text, title):
-    """Check if article is education-related by examining title and content"""
+    """Check if article is African Education-related by examining title and content"""
     if not text and not title:
         return False
     
-    # Updated education keywords - more comprehensive and focused
+    # African countries and regions
+    african_countries = [
+        'africa', 'african', 'nigeria', 'nigerian', 'ghana', 'ghanaian', 'kenya', 'kenyan',
+        'south africa', 'south african', 'tanzania', 'tanzanian', 'uganda', 'ugandan',
+        'ethiopia', 'ethiopian', 'egypt', 'egyptian', 'morocco', 'moroccan', 'algeria', 'algerian',
+        'tunisia', 'tunisian', 'libya', 'libyan', 'sudan', 'sudanese', 'ethiopia', 'ethiopian',
+        'zimbabwe', 'zimbabwean', 'mozambique', 'mozambican', 'angola', 'angolan',
+        'cameron', 'cameroonian', 'senegal', 'senegalese', 'ivory coast', "côte d'ivoire",
+        'mali', 'malian', 'burkina faso', 'burkinabe', 'niger', 'nigerien', 'chad', 'chadian',
+        'rwanda', 'rwandan', 'burundi', 'burundian', 'botswana', 'botswanan',
+        'namibia', 'namibian', 'zambia', 'zambian', 'malawi', 'malawian',
+        'madagascar', 'malagasy', 'mauritius', 'mauritian', 'seychelles', 'seychellois',
+        'sierra leone', 'sierra leonean', 'liberia', 'liberian', 'guinea', 'guinean',
+        'gambia', 'gambian', 'cape verde', 'cape verdean', 'são tomé', 'são toméan',
+        'equatorial guinea', 'gabon', 'gabonese', 'congo', 'congolese',
+        'central african republic', 'dr congo', 'democratic republic of congo',
+        'west africa', 'east africa', 'southern africa', 'north africa', 'sub-saharan africa',
+        'african union', 'au', 'ecowas', 'sadc', 'eac'
+    ]
+    
+    # Education keywords
     education_keywords = [
         'education', 'school', 'student', 'teacher', 'teaching', 'university', 'college',
         'academic', 'curriculum', 'learning', 'learn', 'classroom', 'pedagogy', 'instruction',
@@ -1026,16 +1046,16 @@ def is_education_content(text, title):
         'elementary', 'secondary', 'high school', 'middle school', 'kindergarten', 'preschool',
         'exam', 'examination', 'test', 'assessment', 'grading', 'grade', 'diploma', 'degree',
         'scholarship', 'tuition', 'fee', 'enrollment', 'admission', 'applicant',
-        'campus', 'campus life', 'student body', 'alumni', 'graduate', 'graduation',
+        'campus', 'student body', 'alumni', 'graduate', 'graduation',
         'literacy', 'reading', 'writing', 'mathematics', 'science', 'history', 'language',
         'education policy', 'education reform', 'education system', 'school district',
-        'boarding school', 'public school', 'private school', 'charter school',
-        'homeschool', 'homeschooling', 'distance learning', 'online learning', 'e-learning',
+        'boarding school', 'public school', 'private school',
         'textbook', 'course', 'syllabus', 'lesson', 'assignment', 'homework', 'project',
-        'study', 'research', 'thesis', 'dissertation', 'essay', 'paper'
+        'study', 'research', 'thesis', 'dissertation', 'essay', 'paper',
+        'WAEC', 'JAMB', 'NECO', 'GCE', 'SAT', 'ACT'
     ]
     
-    # Exclude words that suggest non-education topics
+    # Exclude words that suggest non-education or non-African topics
     exclude_keywords = [
         'sports', 'entertainment', 'politics', 'technology', 'business', 'finance',
         'economy', 'stock market', 'celebrity', 'movie', 'music', 'game', 'gaming',
@@ -1044,13 +1064,25 @@ def is_education_content(text, title):
         'automotive', 'car', 'vehicle', 'real estate', 'property'
     ]
     
+    # Exclude non-African regions/countries
+    non_african_regions = [
+        'europe', 'european', 'asia', 'asian', 'america', 'american', 'us', 'usa', 'united states',
+        'uk', 'britain', 'british', 'france', 'french', 'germany', 'german', 'spain', 'spanish',
+        'italy', 'italian', 'china', 'chinese', 'japan', 'japanese', 'india', 'indian',
+        'australia', 'australian', 'canada', 'canadian', 'brazil', 'brazilian',
+        'russia', 'russian', 'mexico', 'mexican'
+    ]
+    
     # Combine title and text for checking
     combined_text = f"{title} {text}".lower() if title and text else (title or text or "").lower()
     
     if not combined_text:
         return False
     
-    # Check for exclude keywords first - if found, likely not education
+    # First, check if article mentions African countries/regions
+    has_african_context = any(country in combined_text for country in african_countries)
+    
+    # Check for exclude keywords - if found, likely not education or not African
     for exclude in exclude_keywords:
         if exclude in combined_text:
             # Allow only if it's clearly education context (e.g., "education policy")
@@ -1058,11 +1090,18 @@ def is_education_content(text, title):
                 continue
             return False
     
-    # Check for education keywords - need at least one strong match
+    # Check for non-African regions - if mentioned prominently, likely not African education
+    for region in non_african_regions:
+        if region in combined_text and not has_african_context:
+            # If it's about non-African education and doesn't mention Africa, skip it
+            if any(edu in combined_text for edu in education_keywords):
+                return False
+    
+    # Check for education keywords
     education_match_count = sum(1 for keyword in education_keywords if keyword in combined_text)
     
-    # Require at least one education keyword match
-    return education_match_count > 0
+    # Require: at least one education keyword AND African context
+    return education_match_count > 0 and has_african_context
 
 # Helper function to extract featured image from article page
 def extract_featured_image_from_article(article_url, headers):
@@ -1358,6 +1397,10 @@ def fetch_education_news():
                         if not image_url:
                             image_url = extract_featured_image_from_article(full_url, headers)
                         
+                        # Skip articles without featured images - REQUIREMENT: all articles must have images
+                        if not image_url:
+                            continue  # Skip this article completely if no image found
+                        
                         # Skip if title is too short or empty (filter empty articles)
                         if not title or len(title.strip()) < 15:
                             continue
@@ -1365,30 +1408,32 @@ def fetch_education_news():
                         # Check if article already exists
                         existing = NewsArticle.query.filter_by(source_url=full_url).first()
                         if not existing:
-                            # Create new article
-                            article = NewsArticle(
-                                title=title[:500],  # Limit title length
-                                source_url=full_url,
-                                image_url=image_url[:1000] if image_url else None,  # Limit URL length
-                                category='Education',
-                                published_at=datetime.utcnow(),
-                                fetched_at=datetime.utcnow(),
-                                is_education_related=True
-                            )
-                            articles.append(article)
+                            # Create new article (only if image exists - already checked above)
+                            if image_url:  # Double check - should always be true here but extra safety
+                                article = NewsArticle(
+                                    title=title[:500],  # Limit title length
+                                    source_url=full_url,
+                                    image_url=image_url[:1000],  # Limit URL length
+                                    category='Education',
+                                    published_at=datetime.utcnow(),
+                                    fetched_at=datetime.utcnow(),
+                                    is_education_related=True
+                                )
+                                articles.append(article)
                         else:
                             # Article exists - update image if it doesn't have one
                             if not existing.image_url and image_url:
                                 existing.image_url = image_url[:1000]
                                 existing.fetched_at = datetime.utcnow()
                                 db.session.commit()
-                            # Keep it in potential list for fallback
-                            potential_article = {
-                                'title': title[:500],
-                                'source_url': full_url,
-                                'image_url': image_url[:1000] if image_url else None
-                            }
-                            articles.append(potential_article)
+                            # Only keep in potential list if it has an image
+                            if image_url:
+                                potential_article = {
+                                    'title': title[:500],
+                                    'source_url': full_url,
+                                    'image_url': image_url[:1000]
+                                }
+                                articles.append(potential_article)
                     except Exception as e:
                         continue  # Skip problematic links
                 
@@ -1404,8 +1449,8 @@ def fetch_education_news():
                             # Check if it exists in database
                             existing = NewsArticle.query.filter_by(source_url=article['source_url']).first()
                             if not existing:
-                                # Skip if title is too short or empty
-                                if article['title'] and len(article['title'].strip()) >= 15:
+                                # Skip if title is too short or empty, or if no image
+                                if article['title'] and len(article['title'].strip()) >= 15 and article.get('image_url'):
                                     new_article = NewsArticle(
                                         title=article['title'],
                                         source_url=article['source_url'],
@@ -1435,14 +1480,16 @@ def fetch_education_news():
                         print(f"  ℹ Limited to 50 articles per source (found {len(new_articles)})")
                 else:
                     # If no new articles, fetch the last articles from this source (update existing ones)
-                    # Get the last 30 articles we have from this source domain (only education-related, non-empty)
+                    # Get the last 30 articles we have from this source domain (only education-related, non-empty, with images)
                     source_domain = urlparse(source_url).netloc
                     existing_articles = NewsArticle.query.filter(
                         NewsArticle.source_url.like(f'%{source_domain}%'),
                         NewsArticle.is_education_related == True,
                         NewsArticle.title.isnot(None),
                         NewsArticle.title != '',
-                        func.length(NewsArticle.title) >= 15
+                        func.length(NewsArticle.title) >= 15,
+                        NewsArticle.image_url.isnot(None),  # Must have featured image
+                        NewsArticle.image_url != ''  # Image URL must not be empty
                     ).order_by(NewsArticle.fetched_at.desc()).limit(30).all()
                     
                     # Update their fetched_at timestamp to show they're still relevant
@@ -1484,13 +1531,15 @@ def news_fetcher_thread():
 @app.route('/')
 def index():
     """Homepage"""
-    # Get latest news articles (filter out non-education related and empty articles)
+    # Get latest news articles (filter out non-education related, empty articles, and articles without images)
     if db_connected:
         news_articles = NewsArticle.query.filter(
             NewsArticle.is_education_related == True,
             NewsArticle.title.isnot(None),
             NewsArticle.title != '',
-            func.length(NewsArticle.title) >= 15  # Minimum title length
+            func.length(NewsArticle.title) >= 15,  # Minimum title length
+            NewsArticle.image_url.isnot(None),  # Must have featured image
+            NewsArticle.image_url != ''  # Image URL must not be empty
         ).order_by(NewsArticle.fetched_at.desc()).limit(10).all()
     else:
         news_articles = []
@@ -2102,12 +2151,14 @@ def news():
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
-    # Filter out non-education related and empty articles
+    # Filter out non-education related, empty articles, and articles without images
     base_query = NewsArticle.query.filter(
         NewsArticle.is_education_related == True,
         NewsArticle.title.isnot(None),
         NewsArticle.title != '',
-        func.length(NewsArticle.title) >= 15  # Minimum title length
+        func.length(NewsArticle.title) >= 15,  # Minimum title length
+        NewsArticle.image_url.isnot(None),  # Must have featured image
+        NewsArticle.image_url != ''  # Image URL must not be empty
     )
     
     # Get total count and paginate
