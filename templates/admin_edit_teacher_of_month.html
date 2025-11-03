@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Teacher of the Month - Admin - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+        <div class="mb-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Edit Teacher of the Month</h2>
+            <p class="text-sm sm:text-base text-gray-600">Update the information for {{ teacher.teacher_name }}</p>
+        </div>
+        
+        <form action="{{ url_for('edit_teacher_of_the_month', teacher_id=teacher.id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <div>
+                <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">Link to User Account (Optional)</label>
+                <select id="user_id" name="user_id"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                    <option value="">-- No user link (manual entry) --</option>
+                    {% for user_option in users %}
+                    <option value="{{ user_option.id }}" {% if teacher.user_id == user_option.id %}selected{% endif %}>
+                        {{ user_option.username }}{% if user_option.full_name %} ({{ user_option.full_name }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Select a user account to link. This will grant them the Teacher of the Month badge on their profile.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="teacher_name" class="block text-sm font-medium text-gray-700 mb-2">Teacher Name *</label>
+                    <input type="text" id="teacher_name" name="teacher_name" required
+                           value="{{ teacher.teacher_name }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                </div>
+                
+                <div>
+                    <label for="teacher_title" class="block text-sm font-medium text-gray-700 mb-2">Teacher Title</label>
+                    <input type="text" id="teacher_title" name="teacher_title"
+                           value="{{ teacher.teacher_title or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="e.g., Mathematics Teacher, Principal">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="school_name" class="block text-sm font-medium text-gray-700 mb-2">School Name</label>
+                    <input type="text" id="school_name" name="school_name"
+                           value="{{ teacher.school_name or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="e.g., Greenfield Academy">
+                </div>
+                
+                <div>
+                    <label for="location" class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <input type="text" id="location" name="location"
+                           value="{{ teacher.location or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="e.g., Lagos, Nigeria">
+                </div>
+            </div>
+            
+            <div>
+                <label for="month_year" class="block text-sm font-medium text-gray-700 mb-2">Month & Year *</label>
+                <input type="text" id="month_year" name="month_year" required
+                       value="{{ teacher.month_year }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                       placeholder="e.g., November 2024">
+                <p class="text-xs text-gray-500 mt-1">Format: Month Year (e.g., November 2024)</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Teacher Photo</label>
+                <p class="text-xs text-gray-500 mb-3">Upload a new photo or update the photo URL</p>
+                
+                {% if teacher.photo_url %}
+                <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-2">Current Photo:</p>
+                    <img src="{{ teacher.photo_url }}" alt="{{ teacher.teacher_name }}"
+                         class="w-32 h-32 object-cover rounded-lg border-2 border-gray-300">
+                </div>
+                {% endif %}
+                
+                <div class="mb-4">
+                    <label for="photo_file" class="block text-sm font-medium text-gray-700 mb-2">
+                        📤 Upload New Photo From Device
+                    </label>
+                    <input type="file" id="photo_file" name="photo_file" accept="image/*"
+                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="photo_url" class="block text-sm font-medium text-gray-700 mb-2">
+                        🔗 Or Update Photo URL
+                    </label>
+                    <input type="url" id="photo_url" name="photo_url"
+                           value="{{ teacher.photo_url or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           placeholder="https://example.com/photo.jpg">
+                </div>
+            </div>
+            
+            <div>
+                <label for="bio" class="block text-sm font-medium text-gray-700 mb-2">Bio / Description</label>
+                <textarea id="bio" name="bio" rows="4"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="Write a brief bio or description of the teacher...">{{ teacher.bio or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label for="achievements" class="block text-sm font-medium text-gray-700 mb-2">Achievements & Contributions</label>
+                <textarea id="achievements" name="achievements" rows="5"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="List achievements, contributions, awards, etc. (one per line or as paragraphs)...">{{ teacher.achievements or '' }}</textarea>
+            </div>
+            
+            <div class="flex gap-4">
+                <button type="submit"
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-lg hover:shadow-xl">
+                    Update Teacher of the Month
+                </button>
+                <a href="{{ url_for('admin_teacher_of_the_month') }}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
