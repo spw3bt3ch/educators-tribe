@@ -33,26 +33,34 @@
                         <!-- Upload Form -->
                         <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" class="space-y-4">
                             <input type="hidden" name="form_type" value="picture">
-                            <!-- File Upload -->
+                            
+                            <!-- File Upload - Modern UI -->
                             <div>
-                                <label for="profile_picture" class="block text-sm text-gray-600 mb-2">Upload Picture</label>
-                                <input type="file" 
-                                       id="profile_picture" 
-                                       name="profile_picture" 
-                                       accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-sm">
+                                <label for="profile_picture" class="block text-sm font-medium text-gray-700 mb-2">
+                                    📤 Upload From Device
+                                </label>
+                                <div class="relative">
+                                    <input type="file" 
+                                           id="profile_picture" 
+                                           name="profile_picture" 
+                                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer transition">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, GIF, WEBP</p>
                             </div>
 
                             <!-- OR Divider -->
                             <div class="flex items-center my-2">
                                 <div class="flex-1 border-t border-gray-300"></div>
-                                <span class="px-4 text-xs text-gray-500">OR</span>
+                                <span class="px-4 text-xs text-gray-500 font-medium">OR</span>
                                 <div class="flex-1 border-t border-gray-300"></div>
                             </div>
 
                             <!-- Image URL -->
                             <div>
-                                <label for="profile_picture_url" class="block text-sm text-gray-600 mb-2">Picture URL</label>
+                                <label for="profile_picture_url" class="block text-sm font-medium text-gray-700 mb-2">
+                                    🔗 Picture URL
+                                </label>
                                 <input type="url" 
                                        id="profile_picture_url" 
                                        name="profile_picture_url" 
@@ -63,8 +71,10 @@
 
                             <!-- Preview -->
                             <div id="picture_preview" class="hidden">
-                                <p class="text-xs text-gray-600 mb-2">Preview:</p>
-                                <img id="preview_img" src="" alt="Preview" class="w-24 h-24 rounded-full mx-auto object-cover border-2 border-gray-300">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+                                <div class="relative inline-block mx-auto">
+                                    <img id="preview_img" src="" alt="Preview" class="w-24 h-24 rounded-full object-cover border-2 border-green-200 shadow-md">
+                                </div>
                             </div>
 
                             <!-- Remove Picture -->

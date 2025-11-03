@@ -24,24 +24,51 @@
             </div>
             
             <div>
-                <label for="image_file" class="block text-sm font-medium text-gray-700 mb-2">Advert Image</label>
-                <input type="file" id="image_file" name="image_file" accept="image/png,image/jpg,image/jpeg,image/gif,image/webp"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                       onchange="previewImage(event)">
-                <p class="text-sm text-gray-500 mt-1">Upload an image file (PNG, JPG, JPEG, GIF, or WEBP) - Max 5MB</p>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Advert Image</label>
+                <p class="text-xs text-gray-500 mb-3">Upload an image from your device or provide an image URL</p>
+                
+                <!-- Image Upload - Modern UI -->
+                <div class="mb-4">
+                    <label for="image_file" class="block text-sm font-medium text-gray-700 mb-2">
+                        📤 Upload Image From Device
+                    </label>
+                    <div class="relative">
+                        <input type="file" 
+                               id="image_file" 
+                               name="image_file" 
+                               accept="image/png,image/jpg,image/jpeg,image/gif,image/webp"
+                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer transition"
+                               onchange="previewImage(event)">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Supported: PNG, JPG, JPEG, GIF, WEBP - Max 5MB</p>
+                </div>
+                
+                <!-- OR Divider -->
+                <div class="flex items-center my-4">
+                    <div class="flex-1 border-t border-gray-300"></div>
+                    <span class="px-4 text-sm text-gray-500 font-medium">OR</span>
+                    <div class="flex-1 border-t border-gray-300"></div>
+                </div>
+                
+                <!-- Image URL -->
+                <div>
+                    <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">
+                        🔗 Image URL (Optional)
+                    </label>
+                    <input type="url" 
+                           id="image_url" 
+                           name="image_url"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                           placeholder="https://example.com/image.jpg"
+                           onchange="previewImageFromUrl(event)">
+                </div>
                 
                 <!-- Image Preview -->
                 <div id="image-preview" class="mt-4 hidden">
-                    <img id="preview-img" src="" alt="Preview" class="max-w-full h-48 object-cover rounded-lg border border-gray-300">
-                </div>
-                
-                <!-- Alternative: Image URL -->
-                <div class="mt-4">
-                    <p class="text-sm text-gray-600 mb-2">Or provide an image URL:</p>
-                    <input type="url" id="image_url" name="image_url"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                           placeholder="https://example.com/image.jpg"
-                           onchange="previewImageFromUrl(event)">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+                    <div class="relative inline-block">
+                        <img id="preview-img" src="" alt="Preview" class="max-w-full h-64 object-contain rounded-lg border-2 border-green-200 shadow-sm">
+                    </div>
                 </div>
             </div>
             
