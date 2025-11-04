@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
 from functools import wraps
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, disconnect
 import requests
 from bs4 import BeautifulSoup
 import threading
@@ -472,6 +472,55 @@ class TeacherOfTheMonth(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     creator = db.relationship('Admin', backref='created_teachers_of_month')
     user = db.relationship('User', backref='teacher_of_month_awards')
+
+class ConnectionRequest(db.Model):
+    __tablename__ = 'connection_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    requester_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, accepted, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    responded_at = db.Column(db.DateTime, nullable=True)
+    requester = db.relationship('User', foreign_keys=[requester_id], backref='sent_requests')
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_requests')
+    # Unique constraint to prevent duplicate requests
+    __table_args__ = (db.UniqueConstraint('requester_id', 'receiver_id', name='unique_connection_request'),)
+
+class UserConnection(db.Model):
+    __tablename__ = 'user_connections'
+    id = db.Column(db.Integer, primary_key=True)
+    user1_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    user2_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    connected_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    user1 = db.relationship('User', foreign_keys=[user1_id], backref='connections_as_user1')
+    user2 = db.relationship('User', foreign_keys=[user2_id], backref='connections_as_user2')
+    # Unique constraint to prevent duplicate connections
+    __table_args__ = (db.UniqueConstraint('user1_id', 'user2_id', name='unique_user_connection'),)
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
+    
+    def to_dict(self):
+        """Convert message to dictionary for JSON response"""
+        return {
+            'id': self.id,
+            'sender_id': self.sender_id,
+            'recipient_id': self.recipient_id,
+            'message': self.message,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat(),
+            'sender_name': self.sender.full_name or self.sender.username,
+            'sender_username': self.sender.username,
+            'sender_picture': self.sender.profile_picture or None
+        }
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -2744,6 +2793,383 @@ def delete_post(post_id):
         flash('An error occurred while deleting the post. Please try again.', 'danger')
         return redirect(url_for('blog'))
 
+@app.route('/chat', methods=['GET'])
+@login_required
+def chat():
+    """Chat page - view conversations and messages"""
+    if current_user.__class__.__name__ != 'User':
+        flash('Only regular users can access chat.', 'warning')
+        return redirect(url_for('index'))
+    
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get connected user IDs
+        connected_user_ids = get_connected_user_ids(current_user.id)
+        
+        # Get pending connection requests
+        pending_requests = ConnectionRequest.query.filter(
+            ConnectionRequest.receiver_id == current_user.id,
+            ConnectionRequest.status == 'pending'
+        ).order_by(ConnectionRequest.created_at.desc()).all()
+        
+        # Get conversation list - only with connected users
+        conversations = db.session.query(
+            ChatMessage.sender_id,
+            ChatMessage.recipient_id,
+            func.max(ChatMessage.created_at).label('last_message_time')
+        ).filter(
+            ((ChatMessage.sender_id == current_user.id) | (ChatMessage.recipient_id == current_user.id)) &
+            (ChatMessage.sender_id.in_(connected_user_ids) | ChatMessage.recipient_id.in_(connected_user_ids))
+        ).group_by(
+            ChatMessage.sender_id,
+            ChatMessage.recipient_id
+        ).order_by(func.max(ChatMessage.created_at).desc()).all()
+        
+        # Build conversation list with user info (only connected users)
+        conversation_list = []
+        seen_users = set()
+        
+        for conv in conversations:
+            other_user_id = conv.sender_id if conv.sender_id != current_user.id else conv.recipient_id
+            if other_user_id not in seen_users and other_user_id in connected_user_ids:
+                other_user = User.query.get(other_user_id)
+                if other_user and other_user.is_active:
+                    # Get unread count
+                    unread_count = ChatMessage.query.filter_by(
+                        sender_id=other_user_id,
+                        recipient_id=current_user.id,
+                        is_read=False
+                    ).count()
+                    
+                    conversation_list.append({
+                        'user': other_user,
+                        'last_message_time': conv.last_message_time,
+                        'unread_count': unread_count
+                    })
+                    seen_users.add(other_user_id)
+        
+        return render_template('chat.html', conversations=conversation_list, pending_requests=pending_requests)
+    except Exception as e:
+        print(f"Error in chat route: {e}")
+        flash('Error loading chat. Please try again.', 'danger')
+        return redirect(url_for('index'))
+
+@app.route('/chat/api/messages/<int:user_id>', methods=['GET'])
+@login_required
+def get_chat_messages(user_id):
+    """Get chat messages with a specific user"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can access chat'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        # Verify user exists
+        other_user = User.query.get(user_id)
+        if not other_user or not other_user.is_active:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Verify users are connected
+        if not are_users_connected(current_user.id, user_id):
+            return jsonify({'error': 'You must be connected to this user to view messages'}), 403
+        
+        # Get messages between current user and other user
+        messages = ChatMessage.query.filter(
+            ((ChatMessage.sender_id == current_user.id) & (ChatMessage.recipient_id == user_id)) |
+            ((ChatMessage.sender_id == user_id) & (ChatMessage.recipient_id == current_user.id))
+        ).order_by(ChatMessage.created_at.asc()).all()
+        
+        # Mark messages as read
+        ChatMessage.query.filter_by(
+            sender_id=user_id,
+            recipient_id=current_user.id,
+            is_read=False
+        ).update({'is_read': True})
+        db.session.commit()
+        
+        messages_data = [msg.to_dict() for msg in messages]
+        return jsonify({'messages': messages_data})
+    except Exception as e:
+        print(f"Error getting messages: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to load messages'}), 500
+
+@app.route('/chat/api/users', methods=['GET'])
+@login_required
+def get_chat_users():
+    """Get list of connected users for chat"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can access chat'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        # Get only connected users
+        connected_user_ids = get_connected_user_ids(current_user.id)
+        users = User.query.filter(
+            User.id.in_(connected_user_ids),
+            User.is_active == True
+        ).order_by(User.username.asc()).all()
+        
+        users_data = [{
+            'id': user.id,
+            'username': user.username,
+            'full_name': user.full_name or user.username,
+            'profile_picture': user.profile_picture or None
+        } for user in users]
+        
+        return jsonify({'users': users_data})
+    except Exception as e:
+        print(f"Error getting users: {e}")
+        return jsonify({'error': 'Failed to load users'}), 500
+
+# Helper function to check if users are connected
+def are_users_connected(user1_id, user2_id):
+    """Check if two users are connected"""
+    connection = UserConnection.query.filter(
+        ((UserConnection.user1_id == user1_id) & (UserConnection.user2_id == user2_id)) |
+        ((UserConnection.user1_id == user2_id) & (UserConnection.user2_id == user1_id))
+    ).first()
+    return connection is not None
+
+def get_connected_user_ids(user_id):
+    """Get list of user IDs connected to the given user"""
+    connections = UserConnection.query.filter(
+        (UserConnection.user1_id == user_id) | (UserConnection.user2_id == user_id)
+    ).all()
+    
+    connected_ids = []
+    for conn in connections:
+        if conn.user1_id == user_id:
+            connected_ids.append(conn.user2_id)
+        else:
+            connected_ids.append(conn.user1_id)
+    return connected_ids
+
+@app.route('/connection/send/<int:user_id>', methods=['POST'])
+@login_required
+def send_connection_request(user_id):
+    """Send a connection request to another user"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can send connection requests'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        # Verify recipient exists
+        recipient = User.query.get(user_id)
+        if not recipient or not recipient.is_active:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if already connected
+        if are_users_connected(current_user.id, user_id):
+            return jsonify({'error': 'You are already connected to this user'}), 400
+        
+        # Check if request already exists
+        existing_request = ConnectionRequest.query.filter(
+            ((ConnectionRequest.requester_id == current_user.id) & (ConnectionRequest.receiver_id == user_id)) |
+            ((ConnectionRequest.requester_id == user_id) & (ConnectionRequest.receiver_id == current_user.id))
+        ).first()
+        
+        if existing_request:
+            if existing_request.status == 'pending':
+                if existing_request.requester_id == current_user.id:
+                    return jsonify({'error': 'You already sent a request to this user'}), 400
+                else:
+                    return jsonify({'error': 'This user already sent you a request'}), 400
+            elif existing_request.status == 'accepted':
+                return jsonify({'error': 'You are already connected'}), 400
+        
+        # Create new request
+        request = ConnectionRequest(
+            requester_id=current_user.id,
+            receiver_id=user_id,
+            status='pending'
+        )
+        db.session.add(request)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Connection request sent successfully'})
+    except Exception as e:
+        print(f"Error sending connection request: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to send connection request'}), 500
+
+@app.route('/connection/accept/<int:request_id>', methods=['POST'])
+@login_required
+def accept_connection_request(request_id):
+    """Accept a connection request"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can accept requests'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        conn_request = ConnectionRequest.query.get_or_404(request_id)
+        
+        # Verify current user is the receiver
+        if conn_request.receiver_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        if conn_request.status != 'pending':
+            return jsonify({'error': 'Request already processed'}), 400
+        
+        # Update request status
+        conn_request.status = 'accepted'
+        conn_request.responded_at = datetime.utcnow()
+        
+        # Create connection (store in both directions for easy querying)
+        user1_id = min(conn_request.requester_id, conn_request.receiver_id)
+        user2_id = max(conn_request.requester_id, conn_request.receiver_id)
+        
+        connection = UserConnection(
+            user1_id=user1_id,
+            user2_id=user2_id
+        )
+        db.session.add(connection)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Connection request accepted'})
+    except Exception as e:
+        print(f"Error accepting connection request: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to accept request'}), 500
+
+@app.route('/connection/reject/<int:request_id>', methods=['POST'])
+@login_required
+def reject_connection_request(request_id):
+    """Reject a connection request"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can reject requests'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        conn_request = ConnectionRequest.query.get_or_404(request_id)
+        
+        # Verify current user is the receiver
+        if conn_request.receiver_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        if conn_request.status != 'pending':
+            return jsonify({'error': 'Request already processed'}), 400
+        
+        # Update request status
+        conn_request.status = 'rejected'
+        conn_request.responded_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Connection request rejected'})
+    except Exception as e:
+        print(f"Error rejecting connection request: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to reject request'}), 500
+
+@app.route('/connection/status/<int:user_id>', methods=['GET'])
+@login_required
+def get_connection_status(user_id):
+    """Get connection status with another user"""
+    if current_user.__class__.__name__ != 'User':
+        return jsonify({'error': 'Only regular users can check connection status'}), 403
+    
+    if not db_connected:
+        return jsonify({'error': 'Database not available'}), 500
+    
+    try:
+        # Check if connected
+        if are_users_connected(current_user.id, user_id):
+            return jsonify({'status': 'connected'})
+        
+        # Check for pending requests
+        request = ConnectionRequest.query.filter(
+            ((ConnectionRequest.requester_id == current_user.id) & (ConnectionRequest.receiver_id == user_id)) |
+            ((ConnectionRequest.requester_id == user_id) & (ConnectionRequest.receiver_id == current_user.id))
+        ).first()
+        
+        if request:
+            if request.status == 'pending':
+                if request.requester_id == current_user.id:
+                    return jsonify({'status': 'request_sent'})
+                else:
+                    return jsonify({'status': 'request_received', 'request_id': request.id})
+            else:
+                return jsonify({'status': 'none'})
+        
+        return jsonify({'status': 'none'})
+    except Exception as e:
+        print(f"Error getting connection status: {e}")
+        return jsonify({'error': 'Failed to get connection status'}), 500
+
+@app.route('/discover', methods=['GET'])
+@login_required
+def discover_users():
+    """Discover page - browse users and send connection requests"""
+    if current_user.__class__.__name__ != 'User':
+        flash('Only regular users can discover other users.', 'warning')
+        return redirect(url_for('index'))
+    
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get connected user IDs
+        connected_user_ids = get_connected_user_ids(current_user.id)
+        connected_user_ids.append(current_user.id)  # Include current user to exclude from list
+        
+        # Get all active users (excluding current user and connected users)
+        users = User.query.filter(
+            User.id.notin_(connected_user_ids),
+            User.is_active == True
+        ).order_by(User.username.asc()).all()
+        
+        # Get connection status for each user
+        users_with_status = []
+        for user in users:
+            status = get_connection_status_for_user(current_user.id, user.id)
+            users_with_status.append({
+                'user': user,
+                'status': status['status'],
+                'request_id': status.get('request_id')
+            })
+        
+        return render_template('discover_users.html', users=users_with_status)
+    except Exception as e:
+        print(f"Error in discover_users route: {e}")
+        flash('Error loading users. Please try again.', 'danger')
+        return redirect(url_for('index'))
+
+def get_connection_status_for_user(current_user_id, other_user_id):
+    """Get connection status between two users"""
+    # Check if connected
+    if are_users_connected(current_user_id, other_user_id):
+        return {'status': 'connected'}
+    
+    # Check for pending requests
+    request = ConnectionRequest.query.filter(
+        ((ConnectionRequest.requester_id == current_user_id) & (ConnectionRequest.receiver_id == other_user_id)) |
+        ((ConnectionRequest.requester_id == other_user_id) & (ConnectionRequest.receiver_id == current_user_id))
+    ).first()
+    
+    if request:
+        if request.status == 'pending':
+            if request.requester_id == current_user_id:
+                return {'status': 'request_sent'}
+            else:
+                return {'status': 'request_received', 'request_id': request.id}
+        else:
+            return {'status': 'none'}
+    
+    return {'status': 'none'}
+
 @app.route('/advert/submit', methods=['GET', 'POST'])
 @login_required
 def submit_advert():
@@ -4061,11 +4487,47 @@ def donation_callback():
     
     return redirect(url_for('index'))
 
+# Store active users for Socket.IO
+active_users = {}
+
 # SocketIO events for real-time features
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    emit('status', {'msg': "Connected to Educators' Tribe"})
+    try:
+        # Get user ID from Flask session (Flask-Login stores it here)
+        user_id_str = session.get('_user_id')
+        
+        if user_id_str:
+            # Parse user ID (format: "user_1" or "admin_1")
+            if '_' in user_id_str:
+                prefix, id_str = user_id_str.split('_', 1)
+                if prefix == 'user':
+                    user_id = int(id_str)
+                    user = User.query.get(user_id)
+                    if user and user.is_active:
+                        user_room = f"user_{user_id}"
+                        join_room(user_room)
+                        from flask_socketio import request as socket_request
+                        active_users[socket_request.sid] = user_id
+                        emit('status', {'msg': "Connected to Educators' Tribe"})
+                        return
+        
+        # Not authenticated or not a user
+        disconnect()
+    except Exception as e:
+        print(f"Error in connect handler: {e}")
+        disconnect()
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    try:
+        from flask_socketio import request as socket_request
+        if socket_request.sid in active_users:
+            del active_users[socket_request.sid]
+    except:
+        pass
 
 @socketio.on('join')
 def handle_join(data):
@@ -4073,6 +4535,112 @@ def handle_join(data):
     room = data.get('room', 'general')
     join_room(room)
     emit('status', {'msg': f'Joined room: {room}'}, room=room)
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    """Handle sending a chat message"""
+    try:
+        from flask_socketio import request as socket_request
+        sender_id = active_users.get(socket_request.sid)
+        
+        if not sender_id:
+            emit('error', {'msg': 'You must be logged in as a user to send messages'})
+            return
+        
+        sender = User.query.get(sender_id)
+        if not sender or not sender.is_active:
+            emit('error', {'msg': 'User not found'})
+            return
+        
+        recipient_id = data.get('recipient_id')
+        message_text = data.get('message', '').strip()
+        
+        if not recipient_id or not message_text:
+            emit('error', {'msg': 'Recipient ID and message are required'})
+            return
+        
+        # Verify recipient exists and is a user
+        recipient = User.query.get(recipient_id)
+        if not recipient or not recipient.is_active:
+            emit('error', {'msg': 'Recipient not found'})
+            return
+        
+        # Verify users are connected before allowing message
+        if not are_users_connected(sender_id, recipient_id):
+            emit('error', {'msg': 'You must be connected to this user to send messages'})
+            return
+        
+        # Create message
+        chat_message = ChatMessage(
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            message=message_text
+        )
+        db.session.add(chat_message)
+        db.session.commit()
+        
+        # Prepare message data
+        message_data = chat_message.to_dict()
+        
+        # Send to recipient's room
+        recipient_room = f"user_{recipient_id}"
+        emit('new_message', message_data, room=recipient_room)
+        
+        # Also send confirmation to sender
+        emit('message_sent', message_data)
+        
+    except Exception as e:
+        print(f"Error sending message: {e}")
+        emit('error', {'msg': 'Failed to send message'})
+        db.session.rollback()
+
+@socketio.on('typing')
+def handle_typing(data):
+    """Handle typing indicator"""
+    try:
+        from flask_socketio import request as socket_request
+        sender_id = active_users.get(socket_request.sid)
+        if not sender_id:
+            return
+        
+        sender = User.query.get(sender_id)
+        if not sender:
+            return
+        
+        recipient_id = data.get('recipient_id')
+        is_typing = data.get('is_typing', False)
+        
+        if recipient_id:
+            recipient_room = f"user_{recipient_id}"
+            emit('user_typing', {
+                'user_id': sender_id,
+                'username': sender.username,
+                'is_typing': is_typing
+            }, room=recipient_room)
+    except Exception as e:
+        print(f"Error in typing handler: {e}")
+
+@socketio.on('mark_read')
+def handle_mark_read(data):
+    """Mark messages as read"""
+    try:
+        from flask_socketio import request as socket_request
+        recipient_id = active_users.get(socket_request.sid)
+        if not recipient_id:
+            return
+        
+        sender_id = data.get('sender_id')
+        if sender_id:
+            # Mark all unread messages from this sender as read
+            ChatMessage.query.filter_by(
+                sender_id=sender_id,
+                recipient_id=recipient_id,
+                is_read=False
+            ).update({'is_read': True})
+            db.session.commit()
+    except Exception as e:
+        print(f"Error marking messages as read: {e}")
+        db.session.rollback()
 
 # Initialize database and create admin user
 def init_db():
