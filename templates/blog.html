@@ -68,12 +68,20 @@
                             
                             <p class="text-sm sm:text-base text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
                             
-                            <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">
-                                Read More
-                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                </svg>
-                            </a>
+                            <div class="flex items-center justify-between">
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">
+                                    Read More
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </a>
+                                <div class="flex items-center gap-1 text-gray-500 text-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                    <span>{{ post.get_likes_count() }}</span>
+                                </div>
+                            </div>
                         </div>
                     </article>
                     {% endfor %}

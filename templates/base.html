@@ -32,6 +32,7 @@
                     <a href="{{ url_for('index') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Home</a>
                     <a href="{{ url_for('news') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">News</a>
                     <a href="{{ url_for('blog') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Blog</a>
+                    <a href="{{ url_for('materials') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Materials</a>
                     <a href="{{ url_for('contact') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Contact</a>
                     {% if current_user.is_authenticated %}
                         {% if current_user.__class__.__name__ == 'Admin' %}
@@ -65,6 +66,7 @@
                 <a href="{{ url_for('index') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Home</a>
                 <a href="{{ url_for('news') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">News</a>
                 <a href="{{ url_for('blog') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Blog</a>
+                <a href="{{ url_for('materials') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Materials</a>
                 <a href="{{ url_for('contact') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Contact</a>
                 {% if current_user.is_authenticated %}
                     {% if current_user.__class__.__name__ == 'Admin' %}
