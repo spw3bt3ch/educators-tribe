@@ -127,22 +127,21 @@
                     <div id="typing-indicator" class="hidden p-2 text-sm text-gray-500 italic"></div>
                 </div>
                 
-                <!-- Message Input -->
-                <div id="message-input-container" class="p-3 sm:p-4 border-t border-gray-200 bg-white shadow-lg hidden">
-                    <form id="message-form" class="flex items-end space-x-2 sm:space-x-3">
-                        <div class="flex-1 relative">
+                <!-- Message Input - Always Visible -->
+                <div id="message-input-container" class="p-4 sm:p-5 border-t-2 border-gray-200 bg-white shadow-xl">
+                    <form id="message-form" class="flex items-end gap-3">
+                        <div class="flex-1 relative bg-gray-100 rounded-full border-2 border-gray-200 focus-within:border-green-500 focus-within:bg-white transition-all">
                             <textarea id="message-input" rows="1" placeholder="Type a message..." 
-                                      class="w-full px-4 py-3 pr-12 text-sm sm:text-base border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none overflow-hidden bg-gray-50 hover:bg-white transition-colors"
-                                      style="max-height: 120px; min-height: 48px;"></textarea>
-                            <button type="button" id="emoji-button" class="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600 transition" title="Add emoji">
+                                      class="w-full px-5 py-3 pr-12 text-sm sm:text-base bg-transparent border-0 rounded-full focus:outline-none resize-none overflow-hidden"
+                                      style="max-height: 120px; min-height: 48px; line-height: 1.5;"></textarea>
+                            <button type="button" id="emoji-button" class="absolute right-3 bottom-3 text-gray-500 hover:text-green-600 transition p-1" title="Add emoji">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </button>
                         </div>
-                        <button type="submit" class="bg-green-600 text-white px-5 sm:px-6 py-3 rounded-full hover:bg-green-700 transition font-semibold text-sm sm:text-base shadow-md hover:shadow-lg active:scale-95 flex items-center justify-center min-w-[48px] sm:min-w-[80px]">
-                            <span class="hidden sm:inline">Send</span>
-                            <svg class="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button type="submit" id="send-button" class="bg-green-600 text-white p-3 sm:p-4 rounded-full hover:bg-green-700 transition-all font-semibold shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center min-w-[56px] h-[56px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                             </svg>
                         </button>
@@ -174,8 +173,14 @@
             sidebar.classList.remove('hidden');
             document.getElementById('chat-header').classList.add('hidden');
             document.getElementById('messages-list').classList.add('hidden');
-            document.getElementById('message-input-container').classList.add('hidden');
             document.getElementById('no-chat-selected').classList.remove('hidden');
+            // Disable input when no chat selected
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            messageInput.disabled = true;
+            messageInput.placeholder = 'Select a conversation to start chatting...';
+            messageInput.value = '';
+            sendButton.disabled = true;
             currentChatUserId = null;
         });
     }
@@ -309,7 +314,12 @@
         document.getElementById('no-chat-selected').classList.add('hidden');
         document.getElementById('messages-list').classList.remove('hidden');
         document.getElementById('chat-header').classList.remove('hidden');
-        document.getElementById('message-input-container').classList.remove('hidden');
+        // Message input is always visible, just enable it
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        messageInput.disabled = false;
+        messageInput.placeholder = 'Type a message...';
+        sendButton.disabled = false;
         
         // Update header
         const userItem = document.querySelector(`[data-user-id="${userId}"]`);
@@ -438,9 +448,18 @@
         }
     }
     
-    // Auto-expand textarea
+    // Initialize input on page load
     const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
     
+    // Disable input initially if no conversation is selected
+    if (!currentChatUserId) {
+        messageInput.disabled = true;
+        messageInput.placeholder = 'Select a conversation to start chatting...';
+        sendButton.disabled = true;
+    }
+    
+    // Auto-expand textarea
     function autoExpandTextarea(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
@@ -448,6 +467,14 @@
     
     messageInput.addEventListener('input', function() {
         autoExpandTextarea(this);
+        
+        // Enable/disable send button based on input
+        const sendButton = document.getElementById('send-button');
+        if (this.value.trim().length > 0 && currentChatUserId) {
+            sendButton.disabled = false;
+        } else {
+            sendButton.disabled = true;
+        }
         
         if (!currentChatUserId) return;
         
@@ -493,6 +520,10 @@
         // Clear input and reset height
         messageInput.value = '';
         messageInput.style.height = '48px';
+        
+        // Disable send button
+        const sendButton = document.getElementById('send-button');
+        sendButton.disabled = true;
         
         // Stop typing indicator
         socket.emit('typing', {
