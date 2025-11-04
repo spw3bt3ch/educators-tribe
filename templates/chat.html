@@ -280,9 +280,12 @@
         }, 2000);
     });
     
+    // Get current user ID from template
+    const currentUserId = {{ current_user.id }};
+    
     socket.on('new_message', function(data) {
         // Check if this message is for the current user (they are the recipient)
-        const isForCurrentUser = data.recipient_id == {{ current_user.id }};
+        const isForCurrentUser = data.recipient_id == currentUserId;
         
         // Check if we're currently viewing this conversation
         const isViewingConversation = currentChatUserId && 
@@ -348,7 +351,8 @@
         
         // Update UI
         document.getElementById('no-chat-selected').classList.add('hidden');
-        document.getElementById('messages-list').classList.remove('hidden');
+        const messagesList = document.getElementById('messages-list');
+        messagesList.classList.remove('hidden');
         document.getElementById('chat-header').classList.remove('hidden');
         // Message input is always visible, just enable it
         const messageInput = document.getElementById('message-input');
@@ -391,55 +395,101 @@
     }
     
     function loadMessages(userId) {
+        const messagesList = document.getElementById('messages-list');
+        const noChatSelected = document.getElementById('no-chat-selected');
+        
+        if (!messagesList) {
+            console.error('Messages list element not found');
+            return;
+        }
+        
+        // Hide no-chat-selected and show messages list
+        if (noChatSelected) {
+            noChatSelected.classList.add('hidden');
+        }
+        messagesList.classList.remove('hidden');
+        
+        // Show loading state
+        messagesList.innerHTML = '<div class="text-center text-gray-500 py-8"><p class="text-sm">Loading messages...</p></div>';
+        
         fetch(`/chat/api/messages/${userId}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.error) {
+                    messagesList.innerHTML = `<div class="text-center text-red-500 py-8"><p class="text-sm">${data.error}</p></div>`;
                     showToast('Error: ' + data.error, 'error');
                     return;
                 }
                 
-                const messagesList = document.getElementById('messages-list');
                 messagesList.innerHTML = '';
                 
-                data.messages.forEach(msg => {
-                    addMessage(msg);
-                });
-                
-                scrollToBottom();
+                if (!data.messages || data.messages.length === 0) {
+                    messagesList.innerHTML = '<div class="text-center text-gray-500 py-8"><p class="text-sm">No messages yet. Start the conversation!</p></div>';
+                } else {
+                    console.log(`Loading ${data.messages.length} messages`);
+                    data.messages.forEach(msg => {
+                        addMessage(msg);
+                    });
+                    scrollToBottom();
+                }
             })
             .catch(error => {
                 console.error('Error loading messages:', error);
+                messagesList.innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">Failed to load messages</p></div>';
                 showToast('Failed to load messages. Please try again.', 'error');
             });
     }
     
     function addMessage(msg) {
         const messagesList = document.getElementById('messages-list');
-        const isSent = msg.sender_id == {{ current_user.id }};
+        
+        if (!messagesList) {
+            console.error('Messages list element not found');
+            return;
+        }
+        
+        // Ensure messages list is visible
+        if (messagesList.classList.contains('hidden')) {
+            messagesList.classList.remove('hidden');
+        }
+        
+        // Ensure no-chat-selected is hidden
+        const noChatSelected = document.getElementById('no-chat-selected');
+        if (noChatSelected && !noChatSelected.classList.contains('hidden')) {
+            noChatSelected.classList.add('hidden');
+        }
+        
+        const isSent = msg.sender_id == currentUserId;
         
         const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
+        messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'} mb-2 sm:mb-3`;
         
         const messageContent = document.createElement('div');
-        messageContent.className = `max-w-xs sm:max-w-md lg:max-w-lg px-3 sm:px-4 py-2 sm:py-3 rounded-lg ${isSent ? 'bg-green-600 text-white' : 'bg-white text-gray-900 border border-gray-200 shadow-sm'}`;
+        messageContent.className = `max-w-xs sm:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${isSent ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-900 border border-gray-200 shadow-sm rounded-bl-none'}`;
         
-        if (!isSent) {
+        if (!isSent && msg.sender_name) {
             const senderName = document.createElement('p');
-            senderName.className = 'text-xs font-semibold mb-1';
+            senderName.className = 'text-xs font-semibold mb-1 text-gray-700';
             senderName.textContent = msg.sender_name;
             messageContent.appendChild(senderName);
         }
         
         const messageText = document.createElement('p');
-        messageText.className = 'text-sm sm:text-base break-words';
-        messageText.textContent = msg.message;
+        messageText.className = `text-sm sm:text-base break-words ${isSent ? 'text-white' : 'text-gray-900'}`;
+        messageText.textContent = msg.message || '';
         messageContent.appendChild(messageText);
         
         const time = document.createElement('p');
-        time.className = `text-xs mt-1 ${isSent ? 'text-green-100' : 'text-gray-500'}`;
-        const msgDate = new Date(msg.created_at);
-        time.textContent = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        time.className = `text-xs mt-1.5 ${isSent ? 'text-green-100' : 'text-gray-500'}`;
+        if (msg.created_at) {
+            const msgDate = new Date(msg.created_at);
+            time.textContent = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
         messageContent.appendChild(time);
         
         messageDiv.appendChild(messageContent);
