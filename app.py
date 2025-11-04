@@ -2828,7 +2828,7 @@ def chat():
             ChatMessage.recipient_id
         ).order_by(func.max(ChatMessage.created_at).desc()).all()
         
-        # Build conversation list with user info (only connected users)
+        # Build conversation list with user info (only connected users with messages)
         conversation_list = []
         seen_users = set()
         
@@ -2851,7 +2851,18 @@ def chat():
                     })
                     seen_users.add(other_user_id)
         
-        return render_template('chat.html', conversations=conversation_list, pending_requests=pending_requests)
+        # Get all connected users (including those with no messages yet)
+        all_connected_users = []
+        for user_id in connected_user_ids:
+            if user_id not in seen_users:
+                user = User.query.get(user_id)
+                if user and user.is_active:
+                    all_connected_users.append(user)
+        
+        # Sort by username
+        all_connected_users.sort(key=lambda u: (u.full_name or u.username).lower())
+        
+        return render_template('chat.html', conversations=conversation_list, all_connections=all_connected_users, pending_requests=pending_requests)
     except Exception as e:
         print(f"Error in chat route: {e}")
         flash('Error loading chat. Please try again.', 'danger')
