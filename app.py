@@ -2995,6 +2995,16 @@ def send_connection_request(user_id):
         db.session.add(request)
         db.session.commit()
         
+        # Send real-time notification to recipient
+        recipient_room = f"user_{user_id}"
+        socketio.emit('new_connection_request', {
+            'request_id': request.id,
+            'requester_id': current_user.id,
+            'requester_name': current_user.full_name or current_user.username,
+            'requester_username': current_user.username,
+            'requester_picture': current_user.profile_picture or None
+        }, room=recipient_room)
+        
         return jsonify({'success': True, 'message': 'Connection request sent successfully'})
     except Exception as e:
         print(f"Error sending connection request: {e}")
