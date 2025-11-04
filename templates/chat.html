@@ -3,38 +3,54 @@
 {% block title %}Chat - Educators' Tribe{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">Messages</h1>
+<!-- Notification Toast Container -->
+<div id="toast-container" class="fixed top-16 right-2 sm:right-4 z-50 space-y-2 max-w-sm w-full sm:w-auto"></div>
+
+<div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
+        <a href="{{ url_for('discover_users') }}" class="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-sm transition shadow-md">
+            <span class="hidden sm:inline">Discover </span>Members
+        </a>
+    </div>
     
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden" style="height: calc(100vh - 200px);">
-        <div class="flex h-full">
-            <!-- Conversations Sidebar -->
-            <div class="w-1/3 border-r border-gray-200 overflow-y-auto">
-                <div class="p-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Conversations</h2>
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden" style="height: calc(100vh - 140px); min-height: 500px;">
+        <div class="flex flex-col lg:flex-row h-full">
+            <!-- Conversations Sidebar - Hidden on mobile when chat is open -->
+            <div id="conversations-sidebar" class="w-full lg:w-80 xl:w-96 border-r border-gray-200 overflow-y-auto flex flex-col lg:flex">
+                <!-- Sidebar Header -->
+                <div class="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base sm:text-lg font-semibold text-gray-900">Conversations</h2>
+                        <button id="mobile-close-sidebar" class="lg:hidden text-gray-500 hover:text-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Pending Connection Requests -->
                 {% if pending_requests %}
-                <div class="p-4 border-b border-gray-300 bg-yellow-50">
-                    <h3 class="text-sm font-semibold text-gray-900 mb-3">Connection Requests</h3>
-                    <div class="space-y-3">
+                <div class="p-3 sm:p-4 border-b border-gray-300 bg-yellow-50">
+                    <h3 class="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Connection Requests</h3>
+                    <div class="space-y-2 sm:space-y-3">
                         {% for request in pending_requests %}
-                        <div class="p-3 bg-white rounded-lg border border-yellow-200">
+                        <div class="p-2 sm:p-3 bg-white rounded-lg border border-yellow-200 shadow-sm">
                             <div class="flex items-center space-x-2 mb-2">
                                 {% if request.requester.profile_picture %}
                                 <img src="{{ request.requester.profile_picture }}" alt="{{ request.requester.username }}" 
-                                     class="w-8 h-8 rounded-full object-cover border border-green-500">
+                                     class="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border border-green-500 flex-shrink-0">
                                 {% else %}
-                                <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                <div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-semibold flex-shrink-0">
                                     {{ request.requester.username[0].upper() }}
                                 </div>
                                 {% endif %}
-                                <span class="text-sm font-medium text-gray-900">{{ request.requester.full_name or request.requester.username }}</span>
+                                <span class="text-xs sm:text-sm font-medium text-gray-900 truncate">{{ request.requester.full_name or request.requester.username }}</span>
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="acceptRequest({{ request.id }})" class="flex-1 bg-green-600 text-white text-xs px-3 py-1 rounded hover:bg-green-700 transition">Accept</button>
-                                <button onclick="rejectRequest({{ request.id }})" class="flex-1 bg-gray-300 text-gray-700 text-xs px-3 py-1 rounded hover:bg-gray-400 transition">Reject</button>
+                                <button onclick="acceptRequest({{ request.id }})" class="flex-1 bg-green-600 text-white text-xs sm:text-sm px-3 py-1.5 sm:py-2 rounded hover:bg-green-700 transition font-semibold">Accept</button>
+                                <button onclick="rejectRequest({{ request.id }})" class="flex-1 bg-gray-300 text-gray-700 text-xs sm:text-sm px-3 py-1.5 sm:py-2 rounded hover:bg-gray-400 transition font-semibold">Reject</button>
                             </div>
                         </div>
                         {% endfor %}
@@ -43,72 +59,84 @@
                 {% endif %}
                 
                 <!-- Conversations List -->
-                <div id="conversations-list" class="divide-y divide-gray-200">
+                <div id="conversations-list" class="divide-y divide-gray-200 flex-1 overflow-y-auto">
                     {% if conversations %}
                         {% for conv in conversations %}
-                        <div class="p-4 hover:bg-gray-50 cursor-pointer conversation-item" data-user-id="{{ conv.user.id }}">
+                        <div class="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer conversation-item transition-colors" data-user-id="{{ conv.user.id }}">
                             <div class="flex items-center space-x-3">
                                 {% if conv.user.profile_picture %}
                                 <img src="{{ conv.user.profile_picture }}" alt="{{ conv.user.username }}" 
-                                     class="w-12 h-12 rounded-full object-cover border-2 border-green-500">
+                                     class="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-green-500 flex-shrink-0">
                                 {% else %}
-                                <div class="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base flex-shrink-0">
                                     {{ conv.user.username[0].upper() }}
                                 </div>
                                 {% endif %}
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-semibold text-gray-900">{{ conv.user.full_name or conv.user.username }}</p>
-                                    <p class="text-xs text-gray-500">{{ conv.user.username }}</p>
+                                    <p class="text-sm sm:text-base font-semibold text-gray-900 truncate">{{ conv.user.full_name or conv.user.username }}</p>
+                                    <p class="text-xs text-gray-500 truncate">@{{ conv.user.username }}</p>
                                 </div>
                                 {% if conv.unread_count > 0 %}
-                                <span class="unread-badge bg-green-600 text-white text-xs font-bold rounded-full px-2 py-1">{{ conv.unread_count }}</span>
+                                <span class="unread-badge bg-green-600 text-white text-xs font-bold rounded-full px-2 py-1 flex-shrink-0">{{ conv.unread_count }}</span>
                                 {% endif %}
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="p-4 text-center text-gray-500">
-                            <p class="text-sm">No conversations yet. Connect with other educators to start chatting!</p>
-                            <a href="{{ url_for('discover_users') }}" class="text-green-600 hover:text-green-800 text-sm font-semibold mt-2 inline-block">Discover Tribe Members →</a>
+                        <div class="p-4 sm:p-6 text-center text-gray-500">
+                            <svg class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <p class="text-xs sm:text-sm mb-2">No conversations yet. Connect with other educators to start chatting!</p>
+                            <a href="{{ url_for('discover_users') }}" class="text-green-600 hover:text-green-800 text-xs sm:text-sm font-semibold mt-2 inline-block">Discover Tribe Members →</a>
                         </div>
                     {% endif %}
                 </div>
             </div>
             
             <!-- Chat Area -->
-            <div class="flex-1 flex flex-col">
-                <!-- Chat Header -->
-                <div id="chat-header" class="p-4 border-b border-gray-200 bg-gray-50 hidden">
+            <div class="flex-1 flex flex-col min-w-0">
+                <!-- Chat Header - Shows back button on mobile -->
+                <div id="chat-header" class="p-3 sm:p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white hidden">
                     <div class="flex items-center space-x-3">
-                        <div id="chat-user-avatar" class="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold"></div>
-                        <div>
-                            <p id="chat-user-name" class="text-sm font-semibold text-gray-900"></p>
+                        <button id="mobile-back-button" class="lg:hidden text-gray-600 hover:text-gray-800 mr-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="chat-user-avatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold flex-shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <p id="chat-user-name" class="text-sm sm:text-base font-semibold text-gray-900 truncate"></p>
                             <p id="chat-user-status" class="text-xs text-gray-500">Online</p>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Messages Area -->
-                <div id="messages-container" class="flex-1 overflow-y-auto p-4 bg-gray-50">
+                <div id="messages-container" class="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50">
                     <div id="no-chat-selected" class="flex items-center justify-center h-full text-gray-500">
-                        <div class="text-center">
-                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="text-center px-4">
+                            <svg class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                             </svg>
-                            <p class="text-lg font-medium">Select a conversation to start chatting</p>
+                            <p class="text-base sm:text-lg font-medium">Select a conversation to start chatting</p>
+                            <p class="text-sm text-gray-400 mt-2">Choose a connection from the sidebar</p>
                         </div>
                     </div>
-                    <div id="messages-list" class="space-y-4 hidden"></div>
+                    <div id="messages-list" class="space-y-3 sm:space-y-4 hidden"></div>
                     <div id="typing-indicator" class="hidden p-2 text-sm text-gray-500 italic"></div>
                 </div>
                 
                 <!-- Message Input -->
-                <div id="message-input-container" class="p-4 border-t border-gray-200 bg-white hidden">
+                <div id="message-input-container" class="p-3 sm:p-4 border-t border-gray-200 bg-white hidden">
                     <form id="message-form" class="flex space-x-2">
                         <input type="text" id="message-input" placeholder="Type a message..." 
-                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition font-semibold">
-                            Send
+                               class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <button type="submit" class="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-green-700 transition font-semibold text-sm sm:text-base shadow-md hover:shadow-lg active:scale-95">
+                            <span class="hidden sm:inline">Send</span>
+                            <svg class="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
                         </button>
                     </form>
                 </div>
@@ -122,14 +150,85 @@
     let currentChatUserId = null;
     let typingTimeout = null;
     
+    // Mobile sidebar toggle
+    const sidebar = document.getElementById('conversations-sidebar');
+    const mobileCloseBtn = document.getElementById('mobile-close-sidebar');
+    const mobileBackBtn = document.getElementById('mobile-back-button');
+    
+    if (mobileCloseBtn) {
+        mobileCloseBtn.addEventListener('click', () => {
+            sidebar.classList.add('hidden');
+        });
+    }
+    
+    if (mobileBackBtn) {
+        mobileBackBtn.addEventListener('click', () => {
+            sidebar.classList.remove('hidden');
+            document.getElementById('chat-header').classList.add('hidden');
+            document.getElementById('messages-list').classList.add('hidden');
+            document.getElementById('message-input-container').classList.add('hidden');
+            document.getElementById('no-chat-selected').classList.remove('hidden');
+            currentChatUserId = null;
+        });
+    }
+    
     // Request notification permission on page load
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
     }
     
+    // Toast notification system
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+        
+        toast.className = `${bgColor} text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg flex items-center space-x-3 min-w-[280px] sm:min-w-[300px] max-w-sm animate-slide-in`;
+        toast.innerHTML = `
+            <div class="flex-shrink-0">
+                ${type === 'success' ? 
+                    '<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' :
+                    type === 'error' ?
+                    '<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>' :
+                    '<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+                }
+            </div>
+            <div class="flex-1">
+                <p class="font-semibold text-sm sm:text-base">${message}</p>
+            </div>
+            <button onclick="this.parentElement.remove()" class="flex-shrink-0 text-white hover:text-gray-200 transition">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.style.animation = 'slide-out 0.3s ease-out';
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 300);
+        }, 5000);
+    }
+    
     // Initialize Socket.IO connection
     socket.on('connect', function() {
         console.log('Connected to chat server');
+    });
+    
+    // Listen for new connection requests
+    socket.on('new_connection_request', function(data) {
+        showToast(`🎯 New connection request from ${data.requester_name}!`, 'success');
+        // Reload page to show new request
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
     });
     
     socket.on('new_message', function(data) {
@@ -150,7 +249,7 @@
             } else {
                 // We're not viewing this conversation - show notification and update unread count
                 showNewMessageNotification(data);
-                updateUnreadCount(data.sender_id);
+                updateUnreadCountBadge(data.sender_id);
             }
         } else {
             // This is a message we sent - add it to the chat if we're viewing this conversation
@@ -179,14 +278,19 @@
     });
     
     socket.on('error', function(data) {
-        alert('Error: ' + data.msg);
+        showToast('Error: ' + data.msg, 'error');
     });
     
     // Handle conversation/user selection
-    document.querySelectorAll('.conversation-item, .user-item').forEach(item => {
+    document.querySelectorAll('.conversation-item').forEach(item => {
         item.addEventListener('click', function() {
             const userId = parseInt(this.dataset.userId);
             selectUser(userId);
+            
+            // On mobile, hide sidebar and show chat
+            if (window.innerWidth < 1024) {
+                sidebar.classList.add('hidden');
+            }
         });
     });
     
@@ -201,7 +305,7 @@
         
         // Update header
         const userItem = document.querySelector(`[data-user-id="${userId}"]`);
-        const userName = userItem.querySelector('.text-sm, .text-gray-700').textContent.trim();
+        const userName = userItem.querySelector('.text-sm, .text-base').textContent.trim();
         const userAvatar = userItem.querySelector('img, div');
         
         document.getElementById('chat-user-name').textContent = userName;
@@ -232,7 +336,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    alert('Error: ' + data.error);
+                    showToast('Error: ' + data.error, 'error');
                     return;
                 }
                 
@@ -247,7 +351,7 @@
             })
             .catch(error => {
                 console.error('Error loading messages:', error);
-                alert('Failed to load messages');
+                showToast('Failed to load messages. Please try again.', 'error');
             });
     }
     
@@ -259,7 +363,7 @@
         messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
         
         const messageContent = document.createElement('div');
-        messageContent.className = `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isSent ? 'bg-green-600 text-white' : 'bg-white text-gray-900 border border-gray-200'}`;
+        messageContent.className = `max-w-xs sm:max-w-md lg:max-w-lg px-3 sm:px-4 py-2 sm:py-3 rounded-lg ${isSent ? 'bg-green-600 text-white' : 'bg-white text-gray-900 border border-gray-200 shadow-sm'}`;
         
         if (!isSent) {
             const senderName = document.createElement('p');
@@ -269,7 +373,7 @@
         }
         
         const messageText = document.createElement('p');
-        messageText.className = 'text-sm';
+        messageText.className = 'text-sm sm:text-base break-words';
         messageText.textContent = msg.message;
         messageContent.appendChild(messageText);
         
@@ -297,6 +401,9 @@
             });
         }
         
+        // Show toast notification
+        showToast(`💬 New message from ${data.sender_name}`, 'success');
+        
         // Update unread count badge
         updateUnreadCountBadge(data.sender_id);
     }
@@ -309,16 +416,12 @@
             let badge = convItem.querySelector('.unread-badge');
             if (!badge) {
                 badge = document.createElement('span');
-                badge.className = 'unread-badge bg-green-600 text-white text-xs font-bold rounded-full px-2 py-1';
+                badge.className = 'unread-badge bg-green-600 text-white text-xs font-bold rounded-full px-2 py-1 flex-shrink-0';
                 convItem.querySelector('.flex').appendChild(badge);
             }
             // Increment count
             const currentCount = parseInt(badge.textContent) || 0;
             badge.textContent = currentCount + 1;
-        } else {
-            // If conversation doesn't exist in sidebar, add it
-            // This would require fetching user info, but for now just update counts
-            console.log('New message from user:', userId);
         }
     }
     
@@ -380,14 +483,17 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload(); // Reload to update connections
+                showToast('✅ Connection request accepted! You can now chat.', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
             } else {
-                alert('Error: ' + (data.error || 'Failed to accept request'));
+                showToast(data.error || 'Failed to accept request', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to accept request');
+            showToast('Failed to accept request. Please try again.', 'error');
         });
     }
     
@@ -401,16 +507,59 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload(); // Reload to remove request
+                showToast('Request rejected', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('Error: ' + (data.error || 'Failed to reject request'));
+                showToast(data.error || 'Failed to reject request', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to reject request');
+            showToast('Failed to reject request. Please try again.', 'error');
         });
     }
 </script>
-{% endblock %}
 
+<style>
+    @keyframes slide-in {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slide-out {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    
+    .animate-slide-in {
+        animation: slide-in 0.3s ease-out;
+    }
+    
+    /* Mobile responsive adjustments */
+    @media (max-width: 1023px) {
+        #conversations-sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            background: white;
+        }
+    }
+</style>
+{% endblock %}
