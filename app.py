@@ -208,6 +208,85 @@ def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_loca
         traceback.print_exc()
         return None
 
+# Helper function to upload any file to ImageKit (supports PDF, DOCX, images, etc.)
+def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_local=True):
+    """
+    Upload any file (PDF, DOCX, images, CSV, etc.) to ImageKit and return the URL.
+    If ImageKit fails and fallback_to_local is True, saves to local filesystem.
+    
+    Args:
+        file_file: Flask FileStorage object from request.files
+        folder_name: Folder name in ImageKit or local storage (default: 'materials')
+        fallback_to_local: If True, save locally when ImageKit fails
+    
+    Returns:
+        str: File URL if successful, None if failed
+    """
+    try:
+        # Reset file pointer to beginning
+        file_file.seek(0)
+        file_content = file_file.read()
+        file_file.seek(0)  # Reset again for potential local save
+        
+        # Generate unique filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        original_filename = secure_filename(file_file.filename)
+        file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        unique_filename = f"{timestamp}_{original_filename}"
+        
+        # Try ImageKit upload
+        if imagekit:
+            try:
+                upload_response = imagekit.upload_file(
+                    file=file_content,
+                    file_name=unique_filename,
+                    options={
+                        "folder": folder_name,
+                        "use_unique_file_name": False  # We're already using unique names
+                    }
+                )
+                
+                # Return the URL - response format may vary
+                if upload_response:
+                    if isinstance(upload_response, dict):
+                        if 'url' in upload_response:
+                            print(f"ImageKit file upload successful: {upload_response['url']}")
+                            return upload_response['url']
+                        elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
+                            return upload_response['response_metadata']['url']
+                        elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
+                            return upload_response['response']['url']
+                        elif 'data' in upload_response and isinstance(upload_response['data'], dict) and 'url' in upload_response['data']:
+                            return upload_response['data']['url']
+                    elif hasattr(upload_response, 'url'):
+                        print(f"ImageKit file upload successful: {upload_response.url}")
+                        return upload_response.url
+            except Exception as e:
+                print(f"ImageKit upload error: {e}")
+        
+        # Fallback to local storage
+        if fallback_to_local:
+            try:
+                local_folder = f"materials/{folder_name}"
+                upload_folder = os.path.join(app_dir, 'static', 'files', local_folder)
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                filepath = os.path.join(upload_folder, unique_filename)
+                file_file.save(filepath)
+                
+                local_url = url_for('static', filename=f'files/{local_folder}/{unique_filename}')
+                print(f"File saved locally: {local_url}")
+                return local_url
+            except Exception as e:
+                print(f"Local file save also failed: {e}")
+        
+        return None
+    except Exception as e:
+        print(f"Error in upload_file_to_imagekit: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 # SQLAlchemy Models
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -302,6 +381,17 @@ class BlogPost(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     author = db.relationship('User', backref='posts')
     comments = db.relationship('PostComment', backref='post', lazy='dynamic', cascade='all, delete-orphan', order_by='PostComment.created_at.asc()')
+    likes = db.relationship('PostLike', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_likes_count(self):
+        """Get total number of likes for this post"""
+        return self.likes.count()
+    
+    def is_liked_by_user(self, user_id):
+        """Check if a user has liked this post"""
+        if not user_id:
+            return False
+        return self.likes.filter_by(user_id=user_id).first() is not None
 
 class PostComment(db.Model):
     __tablename__ = 'post_comments'
@@ -311,6 +401,32 @@ class PostComment(db.Model):
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     user = db.relationship('User', backref='comments')
+
+class PostLike(db.Model):
+    __tablename__ = 'post_likes'
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('blog_posts.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    user = db.relationship('User', backref='likes')
+    # Unique constraint to prevent duplicate likes
+    __table_args__ = (db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),)
+
+class EducationalMaterial(db.Model):
+    __tablename__ = 'educational_materials'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    file_url = db.Column(db.String(1000), nullable=False)
+    file_name = db.Column(db.String(500), nullable=False)
+    file_type = db.Column(db.String(100), nullable=False)  # e.g., 'pdf', 'docx', 'jpg', 'png', 'csv'
+    file_size = db.Column(db.Integer, nullable=True)  # Size in bytes
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('admins.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    download_count = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    uploader = db.relationship('Admin', backref='uploaded_materials')
 
 class UserActivity(db.Model):
     __tablename__ = 'user_activities'
@@ -1603,6 +1719,53 @@ def contact():
     """Contact support page"""
     return render_template('contact.html')
 
+@app.route('/materials')
+def materials():
+    """View all educational materials available for download"""
+    if not db_connected:
+        return render_template('materials.html', materials=[], page=1, total_pages=0)
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    
+    try:
+        # Get only active materials
+        pagination = EducationalMaterial.query.filter_by(is_active=True).order_by(
+            EducationalMaterial.created_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        materials = pagination.items
+    except Exception as e:
+        print(f"Error fetching materials: {e}")
+        materials = []
+        pagination = None
+    
+    return render_template('materials.html', materials=materials, pagination=pagination)
+
+@app.route('/materials/<int:material_id>/download')
+def download_material(material_id):
+    """Download educational material and increment download count"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('materials'))
+    
+    try:
+        material = EducationalMaterial.query.get_or_404(material_id)
+        
+        if not material.is_active:
+            flash('This material is no longer available.', 'danger')
+            return redirect(url_for('materials'))
+        
+        # Increment download count
+        material.download_count += 1
+        db.session.commit()
+        
+        # Redirect to the file URL (which can be ImageKit URL or local file)
+        return redirect(material.file_url)
+    except Exception as e:
+        print(f"Error downloading material: {e}")
+        flash('Error downloading material. Please try again.', 'danger')
+        return redirect(url_for('materials'))
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration"""
@@ -2340,10 +2503,16 @@ def post_detail(post_id):
             BlogPost.id != post.id
         ).order_by(BlogPost.created_at.desc()).limit(3).all()
         
-        # Get comments for this post
+                # Get comments for this post
         comments = PostComment.query.filter_by(post_id=post_id).order_by(PostComment.created_at.asc()).all()
-        
-        return render_template('post_detail.html', post=post, related_posts=related_posts, comments=comments)
+
+        # Get like count and check if current user liked this post
+        like_count = post.get_likes_count()
+        is_liked = False
+        if current_user.is_authenticated and current_user.__class__.__name__ != 'Admin':
+            is_liked = post.is_liked_by_user(current_user.id)
+
+        return render_template('post_detail.html', post=post, related_posts=related_posts, comments=comments, like_count=like_count, is_liked=is_liked)
     except Exception as e:
         print(f"Error fetching blog post: {e}")
         flash('Blog post not found.', 'danger')
@@ -2400,6 +2569,49 @@ def add_comment(post_id):
         db.session.rollback()
         flash('An error occurred while adding the comment. Please try again.', 'danger')
         return redirect(url_for('post_detail', post_id=post_id))
+
+@app.route('/blog/post/<int:post_id>/like', methods=['POST'])
+@login_required
+def toggle_like(post_id):
+    """Toggle like on a blog post (AJAX endpoint)"""
+    if not db_connected:
+        return jsonify({'success': False, 'message': 'Database not available'}), 500
+    
+    # Prevent admins from liking (they can create posts instead)
+    if current_user.__class__.__name__ == 'Admin':
+        return jsonify({'success': False, 'message': 'Admins cannot like posts'}), 403
+    
+    try:
+        post = BlogPost.query.get_or_404(post_id)
+        user_id = current_user.id
+        
+        # Check if user already liked this post
+        existing_like = PostLike.query.filter_by(post_id=post_id, user_id=user_id).first()
+        
+        if existing_like:
+            # Unlike: remove the like
+            db.session.delete(existing_like)
+            db.session.commit()
+            liked = False
+        else:
+            # Like: add the like
+            new_like = PostLike(post_id=post_id, user_id=user_id)
+            db.session.add(new_like)
+            db.session.commit()
+            liked = True
+        
+        # Get updated like count
+        like_count = post.get_likes_count()
+        
+        return jsonify({
+            'success': True,
+            'liked': liked,
+            'like_count': like_count
+        })
+    except Exception as e:
+        print(f"Error toggling like: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'An error occurred'}), 500
 
 @app.route('/blog/post/<int:post_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -4099,6 +4311,141 @@ def init_db():
         print(f"⚠ Error initializing database: {e}")
         import traceback
         traceback.print_exc()
+
+# Admin Routes for Educational Materials
+@app.route('/admin/materials')
+@admin_required
+def admin_materials():
+    """Admin - View all educational materials"""
+    if not db_connected:
+        return render_template('admin_materials.html', materials=[], page=1, total_pages=0)
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    try:
+        pagination = EducationalMaterial.query.order_by(
+            EducationalMaterial.created_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        materials = pagination.items
+    except Exception as e:
+        print(f"Error fetching materials: {e}")
+        materials = []
+        pagination = None
+    
+    return render_template('admin_materials.html', materials=materials, pagination=pagination)
+
+@app.route('/admin/materials/upload', methods=['GET', 'POST'])
+@admin_required
+def admin_upload_material():
+    """Admin - Upload new educational material"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_materials'))
+    
+    if request.method == 'POST':
+        try:
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            file = request.files.get('file')
+            
+            if not title:
+                flash('Title is required.', 'danger')
+                return render_template('admin_upload_material.html')
+            
+            if not file or not file.filename:
+                flash('Please select a file to upload.', 'danger')
+                return render_template('admin_upload_material.html')
+            
+            # Validate file type
+            allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}
+            filename = secure_filename(file.filename)
+            file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            
+            if file_extension not in allowed_extensions:
+                flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(allowed_extensions)}', 'danger')
+                return render_template('admin_upload_material.html')
+            
+            # Get file size
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+            
+            # Upload file to ImageKit or local storage
+            file_url = upload_file_to_imagekit(file, folder_name='materials')
+            
+            if not file_url:
+                flash('Failed to upload file. Please try again.', 'danger')
+                return render_template('admin_upload_material.html')
+            
+            # Create educational material record
+            material = EducationalMaterial(
+                title=title,
+                description=description,
+                file_url=file_url,
+                file_name=filename,
+                file_type=file_extension,
+                file_size=file_size,
+                uploaded_by=current_user.id,
+                is_active=True
+            )
+            
+            db.session.add(material)
+            db.session.commit()
+            
+            flash('Educational material uploaded successfully!', 'success')
+            return redirect(url_for('admin_materials'))
+            
+        except Exception as e:
+            print(f"Error uploading material: {e}")
+            db.session.rollback()
+            flash('An error occurred while uploading the material. Please try again.', 'danger')
+            return render_template('admin_upload_material.html')
+    
+    return render_template('admin_upload_material.html')
+
+@app.route('/admin/materials/<int:material_id>/toggle', methods=['POST'])
+@admin_required
+def admin_toggle_material(material_id):
+    """Admin - Toggle material active/inactive status"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_materials'))
+    
+    try:
+        material = EducationalMaterial.query.get_or_404(material_id)
+        material.is_active = not material.is_active
+        db.session.commit()
+        
+        status = 'activated' if material.is_active else 'deactivated'
+        flash(f'Material {status} successfully!', 'success')
+    except Exception as e:
+        print(f"Error toggling material: {e}")
+        db.session.rollback()
+        flash('Error updating material status. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_materials'))
+
+@app.route('/admin/materials/<int:material_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_material(material_id):
+    """Admin - Delete educational material"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')
+        return redirect(url_for('admin_materials'))
+    
+    try:
+        material = EducationalMaterial.query.get_or_404(material_id)
+        title = material.title
+        db.session.delete(material)
+        db.session.commit()
+        flash(f'Material "{title}" deleted successfully!', 'success')
+    except Exception as e:
+        print(f"Error deleting material: {e}")
+        db.session.rollback()
+        flash('Error deleting material. Please try again.', 'danger')
+    
+    return redirect(url_for('admin_materials'))
 
 if __name__ == '__main__':
     # Initialize database
