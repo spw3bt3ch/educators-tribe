@@ -313,10 +313,63 @@
     });
     
     socket.on('message_sent', function(data) {
-        // Message was sent successfully - add it to the chat immediately
+        // Message was sent successfully - update the temporary message or add it
         if (currentChatUserId && data.recipient_id == currentChatUserId) {
+            // Find and remove the temporary message if it exists
+            const messagesList = document.getElementById('messages-list');
+            
+            // Find all temporary messages and remove the most recent one (last one added)
+            const tempMessageDivs = Array.from(messagesList.querySelectorAll(`[data-temp-id]`));
+            if (tempMessageDivs.length > 0) {
+                // Remove the last temporary message (most recent)
+                const lastTempDiv = tempMessageDivs[tempMessageDivs.length - 1];
+                const tempId = lastTempDiv.dataset.tempId;
+                if (pendingMessages.has(tempId)) {
+                    lastTempDiv.remove();
+                    pendingMessages.delete(tempId);
+                }
+            }
+            
+            // Add the actual message with sent status
+            data.status = 'sent';
             addMessage(data);
             scrollToBottom();
+            
+            // Re-enable send button
+            const sendButton = document.getElementById('send-button');
+            const messageInput = document.getElementById('message-input');
+            if (messageInput && messageInput.value.trim().length === 0) {
+                sendButton.disabled = true;
+            } else {
+                sendButton.disabled = false;
+            }
+        }
+    });
+    
+    socket.on('error', function(data) {
+        // Handle sending errors
+        if (data.type === 'message_error') {
+            showToast('Failed to send message: ' + (data.msg || 'Unknown error'), 'error');
+            
+            // Remove the temporary message on error
+            const messagesList = document.getElementById('messages-list');
+            const tempMessageDivs = messagesList.querySelectorAll(`[data-temp-id]`);
+            tempMessageDivs.forEach(div => {
+                const tempId = div.dataset.tempId;
+                if (pendingMessages.has(tempId)) {
+                    div.remove();
+                    pendingMessages.delete(tempId);
+                }
+            });
+            
+            // Re-enable send button
+            const sendButton = document.getElementById('send-button');
+            const messageInput = document.getElementById('message-input');
+            if (messageInput && messageInput.value.trim().length > 0) {
+                sendButton.disabled = false;
+            }
+        } else {
+            showToast('Error: ' + (data.msg || 'Unknown error'), 'error');
         }
     });
     
@@ -327,10 +380,6 @@
         } else {
             document.getElementById('typing-indicator').classList.add('hidden');
         }
-    });
-    
-    socket.on('error', function(data) {
-        showToast('Error: ' + data.msg, 'error');
     });
     
     // Handle conversation/user selection
@@ -445,7 +494,7 @@
             });
     }
     
-    function addMessage(msg) {
+    function addMessage(msg, isTemporary = false) {
         const messagesList = document.getElementById('messages-list');
         
         if (!messagesList) {
@@ -465,9 +514,20 @@
         }
         
         const isSent = msg.sender_id == currentUserId;
+        const status = msg.status || 'sent'; // sending, sent, delivered, read
         
         const messageDiv = document.createElement('div');
         messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'} w-full`;
+        
+        // Add data-temp-id for temporary messages
+        if (isTemporary && msg.id) {
+            messageDiv.setAttribute('data-temp-id', msg.id);
+        }
+        
+        // Add opacity for sending messages
+        if (status === 'sending') {
+            messageDiv.style.opacity = '0.7';
+        }
         
         const messageContent = document.createElement('div');
         messageContent.className = `max-w-xs sm:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${isSent ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-900 border border-gray-200 shadow-sm rounded-bl-none'}`;
@@ -484,14 +544,52 @@
         messageText.textContent = msg.message || '';
         messageContent.appendChild(messageText);
         
-        const time = document.createElement('p');
-        time.className = `text-xs mt-1.5 ${isSent ? 'text-green-100' : 'text-gray-500'}`;
+        // Time and status row
+        const timeStatusRow = document.createElement('div');
+        timeStatusRow.className = `flex items-center justify-end gap-1.5 mt-1.5 ${isSent ? '' : 'justify-start'}`;
+        
+        const time = document.createElement('span');
+        time.className = `text-xs ${isSent ? 'text-green-100' : 'text-gray-500'}`;
         if (msg.created_at) {
             const msgDate = new Date(msg.created_at);
             time.textContent = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
-        messageContent.appendChild(time);
+        timeStatusRow.appendChild(time);
         
+        // Add status indicator for sent messages
+        if (isSent) {
+            const statusIcon = document.createElement('span');
+            statusIcon.className = 'inline-flex items-center';
+            
+            if (status === 'sending') {
+                // Show spinner for sending
+                statusIcon.innerHTML = `
+                    <svg class="w-3 h-3 text-green-100 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                `;
+            } else if (status === 'sent') {
+                // Show single checkmark for sent
+                statusIcon.innerHTML = `
+                    <svg class="w-3.5 h-3.5 text-green-100" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                `;
+            } else if (status === 'delivered' || status === 'read') {
+                // Show double checkmark for delivered/read
+                statusIcon.innerHTML = `
+                    <svg class="w-3.5 h-3.5 text-green-100" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
+                        <path d="M15.707 4.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" opacity="0.5"></path>
+                    </svg>
+                `;
+            }
+            
+            timeStatusRow.appendChild(statusIcon);
+        }
+        
+        messageContent.appendChild(timeStatusRow);
         messageDiv.appendChild(messageContent);
         messagesList.appendChild(messageDiv);
     }
@@ -593,6 +691,9 @@
         }
     });
     
+    // Track pending messages by message ID
+    const pendingMessages = new Map();
+    
     // Handle message form submission
     document.getElementById('message-form').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -603,17 +704,27 @@
         
         if (!messageText) return;
         
-        // Send message via Socket.IO
-        socket.emit('send_message', {
+        // Create temporary message with "sending" status
+        const tempMessageId = 'temp_' + Date.now();
+        const tempMessage = {
+            id: tempMessageId,
+            sender_id: currentUserId,
             recipient_id: currentChatUserId,
-            message: messageText
-        });
+            message: messageText,
+            created_at: new Date().toISOString(),
+            sender_name: 'You',
+            status: 'sending'
+        };
+        
+        // Add temporary message to chat immediately
+        addMessage(tempMessage, true);
+        pendingMessages.set(tempMessageId, tempMessage);
         
         // Clear input and reset height
         messageInput.value = '';
         messageInput.style.height = '48px';
         
-        // Disable send button
+        // Disable send button temporarily
         const sendButton = document.getElementById('send-button');
         sendButton.disabled = true;
         
@@ -624,6 +735,14 @@
         });
         
         clearTimeout(typingTimeout);
+        
+        // Send message via Socket.IO
+        socket.emit('send_message', {
+            recipient_id: currentChatUserId,
+            message: messageText
+        });
+        
+        scrollToBottom();
     });
     
     // Handle connection requests
