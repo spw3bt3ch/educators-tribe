@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Discover Tribe Members - Educators' Tribe{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Discover Tribe Members</h1>
+            <p class="text-gray-600 mt-2">Connect with fellow educators and expand your network</p>
+        </div>
+        <a href="{{ url_for('chat') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+            Back to Chat
+        </a>
+    </div>
+    
+    {% if users %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for item in users %}
+        <div class="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 p-6">
+            <div class="flex items-center space-x-4 mb-4">
+                {% if item.user.profile_picture %}
+                <img src="{{ item.user.profile_picture }}" alt="{{ item.user.username }}" 
+                     class="w-16 h-16 rounded-full object-cover border-2 border-green-500">
+                {% else %}
+                <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-xl">
+                    {{ item.user.username[0].upper() }}
+                </div>
+                {% endif %}
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ item.user.full_name or item.user.username }}</h3>
+                    <p class="text-sm text-gray-500">@{{ item.user.username }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                {% if item.status == 'connected' %}
+                <button disabled class="w-full bg-green-100 text-green-700 px-4 py-2 rounded-lg font-semibold cursor-not-allowed">
+                    ✓ Connected
+                </button>
+                {% elif item.status == 'request_sent' %}
+                <button disabled class="w-full bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-semibold cursor-not-allowed">
+                    Request Sent
+                </button>
+                {% elif item.status == 'request_received' %}
+                <div class="space-y-2">
+                    <button onclick="acceptRequest({{ item.request_id }})" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition">
+                        Accept Request
+                    </button>
+                    <button onclick="rejectRequest({{ item.request_id }})" class="w-full bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400 transition">
+                        Reject
+                    </button>
+                </div>
+                {% else %}
+                <button onclick="sendTribeInvite({{ item.user.id }})" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition shadow-md hover:shadow-lg">
+                    🎯 Send Tribe Invite
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+        <svg class="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No New Members to Discover</h3>
+        <p class="text-gray-600">You're already connected with everyone! Check back later for new members.</p>
+        <a href="{{ url_for('chat') }}" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+            Back to Chat
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function sendTribeInvite(userId) {
+        fetch(`/connection/send/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Tribe Invite sent successfully! 🎉');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to send invite'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to send invite');
+        });
+    }
+    
+    function acceptRequest(requestId) {
+        fetch(`/connection/accept/${requestId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Connection request accepted! You can now chat.');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to accept request'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to accept request');
+        });
+    }
+    
+    function rejectRequest(requestId) {
+        fetch(`/connection/reject/${requestId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to reject request'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to reject request');
+        });
+    }
+</script>
+{% endblock %}
+
