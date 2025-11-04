@@ -331,6 +331,20 @@
     // Initialize Socket.IO connection
     socket.on('connect', function() {
         console.log('Connected to chat server');
+        // Re-join user room on reconnect
+        if (currentUserId) {
+            socket.emit('join', { user_id: currentUserId });
+        }
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('Disconnected from chat server');
+        showToast('Connection lost. Attempting to reconnect...', 'error');
+    });
+    
+    socket.on('connect_error', function(error) {
+        console.error('Connection error:', error);
+        showToast('Connection error. Please refresh the page.', 'error');
     });
     
     // Listen for new connection requests
@@ -371,24 +385,32 @@
                 addMessage(data);
                 scrollToBottom();
             }
-        }
+                }
     });
-    
+
     socket.on('message_sent', function(data) {
         // Message was sent successfully - update the temporary message or add it
-        if (currentChatUserId && data.recipient_id == currentChatUserId) {
+        // Check if this is a message we sent (sender_id matches current user and recipient matches current chat)
+        if (currentChatUserId && data.sender_id == currentUserId && data.recipient_id == currentChatUserId) {
             // Find and remove the temporary message if it exists
             const messagesList = document.getElementById('messages-list');
             
-            // Find all temporary messages and remove the most recent one (last one added)
+            // Find all temporary messages and remove the matching one
             const tempMessageDivs = Array.from(messagesList.querySelectorAll(`[data-temp-id]`));
-            if (tempMessageDivs.length > 0) {
-                // Remove the last temporary message (most recent)
-                const lastTempDiv = tempMessageDivs[tempMessageDivs.length - 1];
-                const tempId = lastTempDiv.dataset.tempId;
+            for (let div of tempMessageDivs) {
+                const tempId = div.dataset.tempId;
                 if (pendingMessages.has(tempId)) {
-                    lastTempDiv.remove();
-                    pendingMessages.delete(tempId);
+                    const tempMsg = pendingMessages.get(tempId);
+                    // Clear timeout if exists
+                    if (tempMsg.timeout) {
+                        clearTimeout(tempMsg.timeout);
+                    }
+                    // Check if message text matches (to ensure we're removing the right one)
+                    if (tempMsg.message === data.message) {
+                        div.remove();
+                        pendingMessages.delete(tempId);
+                        break;
+                    }
                 }
             }
             
@@ -396,42 +418,56 @@
             data.status = 'sent';
             addMessage(data);
             scrollToBottom();
-            
+
             // Re-enable send button
             const sendButton = document.getElementById('send-button');
             const messageInput = document.getElementById('message-input');
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>';
+            isSending = false;
             if (messageInput && messageInput.value.trim().length === 0) {
                 sendButton.disabled = true;
-            } else {
-                sendButton.disabled = false;
             }
         }
     });
-    
+
     socket.on('error', function(data) {
         // Handle sending errors
-        if (data.type === 'message_error') {
-            showToast('Failed to send message: ' + (data.msg || 'Unknown error'), 'error');
+        const messagesList = document.getElementById('messages-list');
+        const sendButton = document.getElementById('send-button');
+        const messageInput = document.getElementById('message-input');
+        
+        if (data.type === 'message_error' || data.msg) {
+            const errorMsg = data.msg || 'Unknown error';
+            showToast('Failed to send message: ' + errorMsg, 'error');
             
             // Remove the temporary message on error
-            const messagesList = document.getElementById('messages-list');
             const tempMessageDivs = messagesList.querySelectorAll(`[data-temp-id]`);
-            tempMessageDivs.forEach(div => {
-                const tempId = div.dataset.tempId;
+            if (tempMessageDivs.length > 0) {
+                const lastTempDiv = tempMessageDivs[tempMessageDivs.length - 1];
+                const tempId = lastTempDiv.dataset.tempId;
                 if (pendingMessages.has(tempId)) {
-                    div.remove();
+                    const tempMsg = pendingMessages.get(tempId);
+                    // Clear timeout if exists
+                    if (tempMsg.timeout) {
+                        clearTimeout(tempMsg.timeout);
+                    }
+                    lastTempDiv.remove();
                     pendingMessages.delete(tempId);
                 }
-            });
-            
+            }
+
             // Re-enable send button
-            const sendButton = document.getElementById('send-button');
-            const messageInput = document.getElementById('message-input');
+            isSending = false;
+            sendButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>';
             if (messageInput && messageInput.value.trim().length > 0) {
                 sendButton.disabled = false;
+            } else {
+                sendButton.disabled = true;
             }
         } else {
             showToast('Error: ' + (data.msg || 'Unknown error'), 'error');
+            isSending = false;
         }
     });
     
@@ -756,15 +792,18 @@
     // Track pending messages by message ID
     const pendingMessages = new Map();
     
-    // Handle message form submission
+        // Handle message form submission
+    let isSending = false;
     document.getElementById('message-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        
-        if (!currentChatUserId) return;
-        
+
+        if (!currentChatUserId || isSending) return;
+
         const messageText = messageInput.value.trim();
         
         if (!messageText) return;
+        
+        isSending = true;
         
         // Create temporary message with "sending" status
         const tempMessageId = 'temp_' + Date.now();
@@ -782,28 +821,77 @@
         addMessage(tempMessage, true);
         pendingMessages.set(tempMessageId, tempMessage);
         
-        // Clear input and reset height
+                // Clear input and reset height
         messageInput.value = '';
         messageInput.style.height = '48px';
-        
-        // Disable send button temporarily
+
+        // Disable send button temporarily and show loading state
         const sendButton = document.getElementById('send-button');
         sendButton.disabled = true;
-        
+        sendButton.innerHTML = '<svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
         // Stop typing indicator
         socket.emit('typing', {
             recipient_id: currentChatUserId,
             is_typing: false
         });
-        
+
         clearTimeout(typingTimeout);
+        
+        // Set timeout for message sending (10 seconds)
+        const messageTimeout = setTimeout(() => {
+            // Remove the temporary message on timeout
+            const messagesList = document.getElementById('messages-list');
+            const tempMessageDivs = messagesList.querySelectorAll(`[data-temp-id="${tempMessageId}"]`);
+            if (tempMessageDivs.length > 0) {
+                tempMessageDivs[0].remove();
+                pendingMessages.delete(tempMessageId);
+            }
+            
+            // Show error
+            showToast('Message sending timed out. Please try again.', 'error');
+            
+            // Re-enable send button
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>';
+            isSending = false;
+        }, 10000);
+        
+        // Store timeout with message
+        tempMessage.timeout = messageTimeout;
+        pendingMessages.set(tempMessageId, tempMessage);
         
         // Send message via Socket.IO
         socket.emit('send_message', {
             recipient_id: currentChatUserId,
             message: messageText
+        }, function(ack) {
+            // Clear timeout on acknowledgment
+            if (messageTimeout) {
+                clearTimeout(messageTimeout);
+            }
+            
+            // If server returns error in ack
+            if (ack && ack.error) {
+                const messagesList = document.getElementById('messages-list');
+                const tempMessageDivs = messagesList.querySelectorAll(`[data-temp-id="${tempMessageId}"]`);
+                if (tempMessageDivs.length > 0) {
+                    tempMessageDivs[0].remove();
+                    pendingMessages.delete(tempMessageId);
+                }
+                showToast('Failed to send: ' + ack.error, 'error');
+                sendButton.disabled = false;
+                sendButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>';
+                isSending = false;
+            } else {
+                // Success acknowledgment - will be handled by message_sent event
+                // but reset flag here too in case message_sent doesn't fire
+                setTimeout(() => {
+                    isSending = false;
+                }, 1000);
+            }
         });
-        
+
         scrollToBottom();
     });
     
@@ -973,6 +1061,28 @@
         /* Message bubbles on mobile */
         .max-w-xs {
             max-width: 85% !important;
+        }
+        
+        .max-w-xs[style*="opacity: 0.7"] {
+            position: relative;
+        }
+        
+        .max-w-xs[style*="opacity: 0.7"]::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -30px;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #10b981;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: translateY(-50%) rotate(360deg); }
         }
         
         /* Message input container on mobile */
