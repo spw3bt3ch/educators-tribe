@@ -149,7 +149,7 @@
                 </div>
                 
                 <!-- Messages Area -->
-                <div id="messages-container" class="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50">
+                <div id="messages-container" class="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
                     <div id="no-chat-selected" class="flex items-center justify-center h-full text-gray-500">
                         <div class="text-center px-4">
                             <svg class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,8 +159,8 @@
                             <p class="text-sm text-gray-400 mt-2">Choose a connection from the sidebar</p>
                         </div>
                     </div>
-                    <div id="messages-list" class="space-y-3 sm:space-y-4 hidden"></div>
-                    <div id="typing-indicator" class="hidden p-2 text-sm text-gray-500 italic"></div>
+                    <div id="messages-list" class="flex-1 p-3 sm:p-4 space-y-3 sm:space-y-4 flex flex-col justify-end hidden"></div>
+                    <div id="typing-indicator" class="hidden px-3 sm:px-4 pb-2 text-sm text-gray-500 italic"></div>
                 </div>
                 
                 <!-- Message Input - Always Visible -->
@@ -410,7 +410,7 @@
         messagesList.classList.remove('hidden');
         
         // Show loading state
-        messagesList.innerHTML = '<div class="text-center text-gray-500 py-8"><p class="text-sm">Loading messages...</p></div>';
+        messagesList.innerHTML = '<div class="flex-1 flex items-center justify-center"><div class="text-center text-gray-500 py-8"><p class="text-sm">Loading messages...</p></div></div>';
         
         fetch(`/chat/api/messages/${userId}`)
             .then(response => {
@@ -421,7 +421,7 @@
             })
             .then(data => {
                 if (data.error) {
-                    messagesList.innerHTML = `<div class="text-center text-red-500 py-8"><p class="text-sm">${data.error}</p></div>`;
+                    messagesList.innerHTML = `<div class="flex-1 flex items-center justify-center"><div class="text-center text-red-500 py-8"><p class="text-sm">${data.error}</p></div></div>`;
                     showToast('Error: ' + data.error, 'error');
                     return;
                 }
@@ -429,7 +429,7 @@
                 messagesList.innerHTML = '';
                 
                 if (!data.messages || data.messages.length === 0) {
-                    messagesList.innerHTML = '<div class="text-center text-gray-500 py-8"><p class="text-sm">No messages yet. Start the conversation!</p></div>';
+                    messagesList.innerHTML = '<div class="flex-1 flex items-center justify-center"><div class="text-center text-gray-500 py-8"><p class="text-sm">No messages yet. Start the conversation!</p></div></div>';
                 } else {
                     console.log(`Loading ${data.messages.length} messages`);
                     data.messages.forEach(msg => {
@@ -440,7 +440,7 @@
             })
             .catch(error => {
                 console.error('Error loading messages:', error);
-                messagesList.innerHTML = '<div class="text-center text-red-500 py-8"><p class="text-sm">Failed to load messages</p></div>';
+                messagesList.innerHTML = '<div class="flex-1 flex items-center justify-center"><div class="text-center text-red-500 py-8"><p class="text-sm">Failed to load messages</p></div></div>';
                 showToast('Failed to load messages. Please try again.', 'error');
             });
     }
@@ -467,7 +467,7 @@
         const isSent = msg.sender_id == currentUserId;
         
         const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'} mb-2 sm:mb-3`;
+        messageDiv.className = `flex ${isSent ? 'justify-end' : 'justify-start'} w-full`;
         
         const messageContent = document.createElement('div');
         messageContent.className = `max-w-xs sm:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${isSent ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-900 border border-gray-200 shadow-sm rounded-bl-none'}`;
@@ -497,8 +497,14 @@
     }
     
     function scrollToBottom() {
+        const messagesList = document.getElementById('messages-list');
+        if (messagesList) {
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
         const container = document.getElementById('messages-container');
-        container.scrollTop = container.scrollHeight;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }
     
     function showNewMessageNotification(data) {
