@@ -9,13 +9,22 @@
 <div class="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-gray-100">
     <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         <div class="flex items-center justify-between mb-4 sm:mb-6">
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
+            <div class="flex items-center gap-3">
+                <button id="mobile-open-sidebar" class="lg:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition" aria-label="Open conversations">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
+            </div>
             <a href="{{ url_for('discover_users') }}" class="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold text-sm transition shadow-md hover:shadow-lg">
                 <span class="hidden sm:inline">Discover </span>Members
             </a>
         </div>
         
                 <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200" style="height: calc(100vh - 140px); min-height: calc(100vh - 140px);">
+            <!-- Mobile backdrop overlay -->
+            <div id="sidebar-backdrop" class="sidebar-backdrop lg:hidden"></div>
             <div class="flex flex-col lg:flex-row h-full">
                         <!-- Conversations Sidebar - Hidden on mobile when chat is open -->
             <div id="conversations-sidebar" class="w-full lg:w-80 xl:w-96 border-r border-gray-200 flex flex-col h-full overflow-hidden">                      
@@ -200,18 +209,54 @@
     
     // Mobile sidebar toggle
     const sidebar = document.getElementById('conversations-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
     const mobileCloseBtn = document.getElementById('mobile-close-sidebar');
+    const mobileOpenBtn = document.getElementById('mobile-open-sidebar');
     const mobileBackBtn = document.getElementById('mobile-back-button');
     
+    // Initialize sidebar state on mobile - start hidden
+    if (window.innerWidth < 1024) {
+        sidebar.classList.add('hidden');
+    }
+    
+    function openSidebar() {
+        sidebar.classList.remove('hidden');
+        if (backdrop) {
+            backdrop.classList.add('active');
+        }
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    function closeSidebar() {
+        sidebar.classList.add('hidden');
+        if (backdrop) {
+            backdrop.classList.remove('active');
+        }
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    
+    // Close sidebar when clicking backdrop
+    if (backdrop) {
+        backdrop.addEventListener('click', closeSidebar);
+    }
+    
+    if (mobileOpenBtn) {
+        mobileOpenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openSidebar();
+        });
+    }
+    
     if (mobileCloseBtn) {
-        mobileCloseBtn.addEventListener('click', () => {
-            sidebar.classList.add('hidden');
+        mobileCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeSidebar();
         });
     }
     
     if (mobileBackBtn) {
         mobileBackBtn.addEventListener('click', () => {
-            sidebar.classList.remove('hidden');
+            closeSidebar();
             document.getElementById('chat-header').classList.add('hidden');
             document.getElementById('messages-list').classList.add('hidden');
             document.getElementById('no-chat-selected').classList.remove('hidden');
@@ -225,6 +270,18 @@
             currentChatUserId = null;
         });
     }
+    
+    // Close sidebar when clicking outside on mobile (handled by backdrop click)
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) {
+            sidebar.classList.remove('hidden');
+            document.body.style.overflow = '';
+        } else if (!currentChatUserId) {
+            sidebar.classList.add('hidden');
+        }
+    });
     
     // Request notification permission on page load
     if ('Notification' in window && Notification.permission === 'default') {
@@ -393,9 +450,9 @@
             const userId = parseInt(this.dataset.userId);
             selectUser(userId);
             
-            // On mobile, hide sidebar and show chat
+            // On mobile, close sidebar and show chat
             if (window.innerWidth < 1024) {
-                sidebar.classList.add('hidden');
+                closeSidebar();
             }
         });
     });
@@ -829,46 +886,184 @@
     
     /* Mobile responsive adjustments */
     @media (max-width: 1023px) {
-        #conversations-sidebar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            max-height: 100%;
-            z-index: 20;
-            background: white;
-        }
-        
-        .bg-white.rounded-xl {
-            height: calc(100vh - 120px) !important;
-            min-height: calc(100vh - 120px) !important;
+        /* Full screen container on mobile */
+        .min-h-screen {
+            padding: 0 !important;
         }
         
         .min-h-screen > div {
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.5rem !important;
+            max-width: 100% !important;
+            padding: 0 !important;
         }
         
         .min-h-screen > div > div:first-child {
-            margin-bottom: 0.75rem !important;
+            padding: 1rem !important;
+            margin-bottom: 0 !important;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 15;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
+        /* Chat container full height on mobile */
+        .bg-white.rounded-xl {
+            height: calc(100vh - 64px) !important;
+            min-height: calc(100vh - 64px) !important;
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Sidebar styling on mobile */
+        #conversations-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            max-height: 100vh;
+            z-index: 30;
+            background: white;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #conversations-sidebar:not(.hidden) {
+            transform: translateX(0);
+        }
+        
+        /* Sidebar header on mobile */
+        #conversations-sidebar > div:first-child {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(to right, #f9fafb, #ffffff);
+        }
+        
+        /* Scrollable content on mobile */
+        #conversations-sidebar > div.flex-1 {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Chat area on mobile */
+        .flex-1.flex.flex-col {
+            height: 100%;
+        }
+        
+        /* Chat header on mobile */
+        #chat-header {
+            padding: 1rem;
+            background: linear-gradient(to right, #f0fdf4, #ffffff);
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Messages container on mobile */
+        #messages-container {
+            padding-bottom: 1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Message bubbles on mobile */
+        .max-w-xs {
+            max-width: 85% !important;
+        }
+        
+        /* Message input container on mobile */
         #message-input-container {
             position: sticky;
             bottom: 0;
             z-index: 10;
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
         }
         
-        #conversations-sidebar > div.flex-1 {
-            flex: 1 1 auto;
-            min-height: 0;
-            max-height: 100%;
-            overflow-y: auto;
+        #message-form {
+            gap: 0.75rem;
         }
         
-        #conversations-list {
-            padding-bottom: 0 !important;
+        /* Input field on mobile */
+        #message-input {
+            font-size: 16px !important; /* Prevents zoom on iOS */
+            padding: 0.875rem 1rem !important;
+        }
+        
+        /* Send button on mobile */
+        #send-button {
+            min-width: 48px !important;
+            width: 48px !important;
+            height: 48px !important;
+            padding: 0 !important;
+        }
+        
+        /* Connection items on mobile */
+        .conversation-item {
+            padding: 1rem !important;
+            margin: 0.25rem 0.5rem;
+            border-radius: 0.75rem !important;
+        }
+        
+        /* Section headers on mobile */
+        .bg-blue-50, .bg-green-50, .bg-yellow-50 {
+            padding: 1rem !important;
+        }
+        
+        /* Empty state on mobile */
+        #conversations-list > div.text-center {
+            padding: 3rem 1.5rem !important;
+        }
+        
+        /* Hide scrollbar on mobile but keep functionality */
+        #conversations-sidebar > div.flex-1::-webkit-scrollbar,
+        #messages-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        #conversations-sidebar > div.flex-1::-webkit-scrollbar-track,
+        #messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #conversations-sidebar > div.flex-1::-webkit-scrollbar-thumb,
+        #messages-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 2px;
+        }
+        
+        /* Backdrop overlay - will be created by JS */
+        .sidebar-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 25;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .sidebar-backdrop.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
         }
     }
 </style>
