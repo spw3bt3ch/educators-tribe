@@ -10,7 +10,7 @@
     <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         <div class="flex items-center justify-between mb-4 sm:mb-6">
             <div class="flex items-center gap-3">
-                <button id="mobile-open-sidebar" class="lg:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition" aria-label="Open conversations">
+                <button id="mobile-open-sidebar" class="lg:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition relative z-20" aria-label="Open conversations" type="button">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
@@ -203,85 +203,191 @@
 </div>
 
 <script>
-    const socket = io();
-    let currentChatUserId = null;
-    let typingTimeout = null;
-    
-    // Mobile sidebar toggle
-    const sidebar = document.getElementById('conversations-sidebar');
-    const backdrop = document.getElementById('sidebar-backdrop');
-    const mobileCloseBtn = document.getElementById('mobile-close-sidebar');
-    const mobileOpenBtn = document.getElementById('mobile-open-sidebar');
-    const mobileBackBtn = document.getElementById('mobile-back-button');
-    
-    // Initialize sidebar state on mobile - start hidden
-    if (window.innerWidth < 1024) {
-        sidebar.classList.add('hidden');
-    }
+    // Global sidebar functions
+    let sidebar, backdrop, mobileCloseBtn, mobileOpenBtn, mobileBackBtn;
     
     function openSidebar() {
-        sidebar.classList.remove('hidden');
+        if (!sidebar) {
+            console.error('Sidebar element not found');
+            sidebar = document.getElementById('conversations-sidebar');
+            if (!sidebar) return;
+        }
+        console.log('Opening sidebar');
+        sidebar.classList.remove('sidebar-hidden');
         if (backdrop) {
             backdrop.classList.add('active');
         }
         document.body.style.overflow = 'hidden'; // Prevent background scrolling
     }
-    
+
     function closeSidebar() {
-        sidebar.classList.add('hidden');
+        if (!sidebar) {
+            sidebar = document.getElementById('conversations-sidebar');
+            if (!sidebar) return;
+        }
+        sidebar.classList.add('sidebar-hidden');
         if (backdrop) {
             backdrop.classList.remove('active');
         }
         document.body.style.overflow = ''; // Restore scrolling
     }
-    
-    // Close sidebar when clicking backdrop
-    if (backdrop) {
-        backdrop.addEventListener('click', closeSidebar);
-    }
-    
-    if (mobileOpenBtn) {
-        mobileOpenBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openSidebar();
-        });
-    }
-    
-    if (mobileCloseBtn) {
-        mobileCloseBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeSidebar();
-        });
-    }
-    
-    if (mobileBackBtn) {
-        mobileBackBtn.addEventListener('click', () => {
-            closeSidebar();
-            document.getElementById('chat-header').classList.add('hidden');
-            document.getElementById('messages-list').classList.add('hidden');
-            document.getElementById('no-chat-selected').classList.remove('hidden');
-            // Disable input when no chat selected
-            const messageInput = document.getElementById('message-input');
-            const sendButton = document.getElementById('send-button');
-            messageInput.disabled = true;
-            messageInput.placeholder = 'Select a conversation to start chatting...';
-            messageInput.value = '';
-            sendButton.disabled = true;
-            currentChatUserId = null;
-        });
-    }
-    
-    // Close sidebar when clicking outside on mobile (handled by backdrop click)
-    
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        if (window.innerWidth >= 1024) {
-            sidebar.classList.remove('hidden');
-            document.body.style.overflow = '';
-        } else if (!currentChatUserId) {
-            sidebar.classList.add('hidden');
+
+    function initSidebar() {
+        try {
+            // Mobile sidebar toggle
+            sidebar = document.getElementById('conversations-sidebar');
+            backdrop = document.getElementById('sidebar-backdrop');
+            mobileCloseBtn = document.getElementById('mobile-close-sidebar');
+            mobileOpenBtn = document.getElementById('mobile-open-sidebar');
+            mobileBackBtn = document.getElementById('mobile-back-button');
+            
+            console.log('Initializing sidebar...', {
+                sidebar: !!sidebar,
+                backdrop: !!backdrop,
+                mobileOpenBtn: !!mobileOpenBtn,
+                mobileCloseBtn: !!mobileCloseBtn,
+                mobileBackBtn: !!mobileBackBtn
+            });
+            
+            if (!sidebar) {
+                console.error('Sidebar element not found');
+                return;
+            }
+            
+            // Initialize sidebar state on mobile - start hidden
+            if (window.innerWidth < 1024) {
+                sidebar.classList.add('sidebar-hidden');
+            }
+            
+            // Close sidebar when clicking backdrop
+            if (backdrop) {
+                backdrop.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeSidebar();
+                });
+            }
+            
+            // Attach click handler to open button
+            if (mobileOpenBtn) {
+                // Remove any existing listeners
+                var newOpenBtn = mobileOpenBtn.cloneNode(true);
+                mobileOpenBtn.parentNode.replaceChild(newOpenBtn, mobileOpenBtn);
+                mobileOpenBtn = newOpenBtn;
+                
+                mobileOpenBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Menu button clicked, opening sidebar');
+                    openSidebar();
+                }, false);
+                
+                // Also try touchstart for mobile
+                mobileOpenBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Menu button touched, opening sidebar');
+                    openSidebar();
+                }, false);
+            } else {
+                console.error('Mobile open button not found');
+            }
+            
+            // Attach click handler to close button
+            if (mobileCloseBtn) {
+                mobileCloseBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeSidebar();
+                }, false);
+            }
+            
+            // Attach click handler to back button
+            if (mobileBackBtn) {
+                mobileBackBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    closeSidebar();
+                    const chatHeader = document.getElementById('chat-header');
+                    const messagesList = document.getElementById('messages-list');
+                    const noChatSelected = document.getElementById('no-chat-selected');
+                    if (chatHeader) chatHeader.classList.add('hidden');
+                    if (messagesList) messagesList.classList.add('hidden');
+                    if (noChatSelected) noChatSelected.classList.remove('hidden');
+                    // Disable input when no chat selected
+                    const messageInput = document.getElementById('message-input');
+                    const sendButton = document.getElementById('send-button');
+                    if (messageInput) {
+                        messageInput.disabled = true;
+                        messageInput.placeholder = 'Select a conversation to start chatting...';
+                        messageInput.value = '';
+                    }
+                    if (sendButton) sendButton.disabled = true;
+                    if (typeof currentChatUserId !== 'undefined') {
+                        currentChatUserId = null;
+                    }
+                }, false);
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (!sidebar) {
+                    sidebar = document.getElementById('conversations-sidebar');
+                    if (!sidebar) return;
+                }
+                if (window.innerWidth >= 1024) {
+                    sidebar.classList.remove('sidebar-hidden');
+                    document.body.style.overflow = '';
+                    if (backdrop) {
+                        backdrop.classList.remove('active');
+                    }
+                } else {
+                    if (typeof currentChatUserId === 'undefined' || !currentChatUserId) {
+                        sidebar.classList.add('sidebar-hidden');
+                    }
+                }
+            });
+            
+            console.log('Sidebar initialized successfully');
+        } catch (error) {
+            console.error('Error initializing sidebar:', error);
         }
-    });
+    }
+    
+    // Wait for DOM to be fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize sidebar functionality
+            initSidebar();
+        });
+    } else {
+        // DOM is already loaded, run immediately
+        setTimeout(function() {
+            initSidebar();
+        }, 100);
+    }
+
+    // Initialize Socket.IO with error handling
+    let socket;
+    try {
+        socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5,
+            timeout: 20000
+        });
+    } catch (error) {
+        console.error('Error initializing Socket.IO:', error);
+        // Create a mock socket object to prevent errors
+        socket = {
+            on: function() {},
+            emit: function() {},
+            disconnect: function() {}
+        };
+    }
+    
+    let currentChatUserId = null;
+    let typingTimeout = null;
     
     // Request notification permission on page load
     if ('Notification' in window && Notification.permission === 'default') {
@@ -343,8 +449,18 @@
     });
     
     socket.on('connect_error', function(error) {
-        console.error('Connection error:', error);
-        showToast('Connection error. Please refresh the page.', 'error');
+        console.error('Socket.IO connection error:', error);
+        // Don't show toast for connection errors as they're usually temporary
+        // The socket will attempt to reconnect automatically
+    });
+    
+    socket.on('reconnect_error', function(error) {
+        console.error('Socket.IO reconnection error:', error);
+    });
+    
+    socket.on('reconnect_failed', function() {
+        console.error('Socket.IO reconnection failed');
+        showToast('Connection lost. Please refresh the page to reconnect.', 'error');
     });
     
     // Listen for new connection requests
@@ -984,16 +1100,24 @@
             padding: 0 !important;
         }
         
-        .min-h-screen > div > div:first-child {
-            padding: 1rem !important;
-            margin-bottom: 0 !important;
-            border-bottom: 1px solid #e5e7eb;
-            background: white;
-            position: sticky;
-            top: 0;
-            z-index: 15;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
+                 .min-h-screen > div > div:first-child {
+             padding: 1rem !important;
+             margin-bottom: 0 !important;
+             border-bottom: 1px solid #e5e7eb;
+             background: white;
+             position: sticky;
+             top: 0;
+             z-index: 15;
+             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+         }
+         
+         /* Ensure menu button is clickable */
+         #mobile-open-sidebar {
+             position: relative !important;
+             z-index: 25 !important;
+             pointer-events: auto !important;
+             cursor: pointer !important;
+         }
         
         /* Chat container full height on mobile */
         .bg-white.rounded-xl {
@@ -1005,7 +1129,7 @@
         }
         
         /* Sidebar styling on mobile */
-        #conversations-sidebar {
+                #conversations-sidebar {
             position: fixed;
             top: 0;
             left: 0;
@@ -1018,9 +1142,9 @@
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
         }
-        
-        #conversations-sidebar:not(.hidden) {
-            transform: translateX(0);
+
+        #conversations-sidebar:not(.sidebar-hidden) {
+            transform: translateX(0) !important;
         }
         
         /* Sidebar header on mobile */
