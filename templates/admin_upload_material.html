@@ -97,15 +97,45 @@
 
             <!-- Featured Image Upload -->
             <div>
-                <label for="featured_image" class="block text-sm font-semibold text-gray-700 mb-2">Featured Image (Optional)</label>
-                <input type="file"
-                       id="featured_image"
-                       name="featured_image"
-                       accept=".jpg,.jpeg,.png,.gif,.webp"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
-                <p class="mt-1 text-xs text-gray-500">
-                    Upload a featured image to make the material more appealing. Allowed formats: JPG, PNG, GIF, WEBP
-                </p>
+                <label class="block text-sm font-semibold text-gray-700 mb-3">Featured Image (Optional)</label>
+                
+                <!-- Featured Image Type Selection -->
+                <div class="mb-3">
+                    <div class="flex gap-4">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="featured_image_type" value="upload" checked class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-upload">
+                            <span class="text-gray-700">Upload Image</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="featured_image_type" value="url" class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-url">
+                            <span class="text-gray-700">Image URL</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Featured Image Upload Section -->
+                <div id="featured-image-upload-section">
+                    <input type="file"
+                           id="featured_image"
+                           name="featured_image"
+                           accept=".jpg,.jpeg,.png,.gif,.webp"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    <p class="mt-1 text-xs text-gray-500">
+                        Upload a featured image to make the material more appealing. Allowed formats: JPG, PNG, GIF, WEBP
+                    </p>
+                </div>
+
+                <!-- Featured Image URL Section -->
+                <div id="featured-image-url-section" class="hidden">
+                    <input type="url"
+                           id="featured_image_url"
+                           name="featured_image_url"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                           placeholder="https://example.com/image.jpg">
+                    <p class="mt-1 text-xs text-gray-500">
+                        Paste the URL of an image to use as the featured image. The image should be publicly accessible.
+                    </p>
+                </div>
             </div>
 
             <!-- Info Box -->
@@ -120,6 +150,7 @@
                     <li>Files are accessible to all registered users via the Materials page</li>
                     <li>You can use file upload, Google Drive link, or external URL</li>
                     <li>Featured images help make materials more visually appealing</li>
+                    <li>Featured images can be uploaded or provided as a URL</li>
                 </ul>
                 {% if not imagekit %}
                 <div class="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">                                                                           
@@ -203,6 +234,32 @@
 
         // Initialize on page load
         toggleUploadType();
+
+        // Toggle between featured image upload and URL
+        const featuredImageTypeUpload = document.getElementById('featured-image-type-upload');
+        const featuredImageTypeUrl = document.getElementById('featured-image-type-url');
+        const featuredImageUploadSection = document.getElementById('featured-image-upload-section');
+        const featuredImageUrlSection = document.getElementById('featured-image-url-section');
+        const featuredImageInput = document.getElementById('featured_image');
+        const featuredImageUrlInput = document.getElementById('featured_image_url');
+
+        function toggleFeaturedImageType() {
+            if (featuredImageTypeUpload.checked) {
+                featuredImageUploadSection.classList.remove('hidden');
+                featuredImageUrlSection.classList.add('hidden');
+                featuredImageUrlInput.removeAttribute('required');
+            } else {
+                featuredImageUploadSection.classList.add('hidden');
+                featuredImageUrlSection.classList.remove('hidden');
+                featuredImageInput.removeAttribute('required');
+            }
+        }
+
+        featuredImageTypeUpload.addEventListener('change', toggleFeaturedImageType);
+        featuredImageTypeUrl.addEventListener('change', toggleFeaturedImageType);
+
+        // Initialize on page load
+        toggleFeaturedImageType();
 
         // Form validation
         uploadForm.addEventListener('submit', function(e) {
