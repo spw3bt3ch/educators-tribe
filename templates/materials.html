@@ -16,31 +16,43 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for material in materials %}
             <div class="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden">
-                <div class="p-6">
-                    <!-- File Type Icon -->
-                    <div class="flex items-center justify-center w-16 h-16 bg-green-100 rounded-lg mb-4 mx-auto">
-                        {% if material.file_type in ['pdf'] %}
-                        <svg class="w-10 h-10 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <!-- Featured Image or Icon -->
+                {% if material.featured_image_url %}
+                <div class="w-full h-48 bg-gray-100 overflow-hidden">
+                    <img src="{{ material.featured_image_url }}" alt="{{ material.title }}" class="w-full h-full object-cover">
+                </div>
+                {% else %}
+                <div class="w-full h-48 bg-gradient-to-br from-green-50 to-gray-100 flex items-center justify-center">
+                    <div class="flex items-center justify-center w-20 h-20 bg-white rounded-lg shadow-sm">
+                        {% if material.google_drive_link %}
+                        <svg class="w-12 h-12 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+                        </svg>
+                        {% elif material.file_type in ['pdf'] %}
+                        <svg class="w-12 h-12 text-red-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
                         </svg>
                         {% elif material.file_type in ['doc', 'docx'] %}
-                        <svg class="w-10 h-10 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-12 h-12 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
                         </svg>
                         {% elif material.file_type in ['jpg', 'jpeg', 'png', 'gif'] %}
-                        <svg class="w-10 h-10 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-12 h-12 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
                         </svg>
                         {% elif material.file_type in ['csv', 'xlsx', 'xls'] %}
-                        <svg class="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm2 2a1 1 0 000 2h.01a1 1 0 100-2H5zm3 0a1 1 0 000 2h3a1 1 0 100-2H8z" clip-rule="evenodd"/>
                         </svg>
                         {% else %}
-                        <svg class="w-10 h-10 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
                         </svg>
                         {% endif %}
                     </div>
+                </div>
+                {% endif %}
+                <div class="p-6">
 
                     <!-- Title -->
                     <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2">{{ material.title }}</h3>
@@ -50,9 +62,18 @@
                     <p class="text-sm text-gray-600 mb-4 line-clamp-3">{{ material.description }}</p>
                     {% endif %}
 
-                    <!-- File Info -->
+                                        <!-- File Info -->
                     <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+                        {% if material.google_drive_link %}
+                        <span class="uppercase font-semibold text-blue-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+                            </svg>
+                            Google Drive
+                        </span>
+                        {% elif material.file_type %}
                         <span class="uppercase font-semibold">{{ material.file_type }}</span>
+                        {% endif %}
                         {% if material.file_size %}
                         <span>{{ "%.1f"|format(material.file_size / 1024) }} KB</span>
                         {% endif %}
@@ -66,13 +87,20 @@
                         {{ material.download_count }} download{{ 's' if material.download_count != 1 else '' }}
                     </div>
 
-                    <!-- Download Button -->
+                    <!-- Download/View Button -->
                     <a href="{{ url_for('download_material', material_id=material.id) }}" 
                        class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
+                        {% if material.google_drive_link %}
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        Open in Drive
+                        {% else %}
                         <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
                         Download
+                        {% endif %}
                     </a>
                 </div>
             </div>

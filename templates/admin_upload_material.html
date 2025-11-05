@@ -1,71 +1,126 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Educational Material - Admin Dashboard{% endblock %}
+{% block title %}Upload Educational Material - Admin Dashboard{% endblock %}    
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Upload Educational Material</h1>
-        <p class="text-sm sm:text-base text-gray-600">Add a new educational resource for users to download</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Upload Educational Material</h1>                                                          
+        <p class="text-sm sm:text-base text-gray-600">Add a new educational resource for users to download</p>                                                  
     </div>
 
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 lg:p-8">
-        <form method="POST" action="{{ url_for('admin_upload_material') }}" enctype="multipart/form-data" class="space-y-6">
+        <form method="POST" action="{{ url_for('admin_upload_material') }}" enctype="multipart/form-data" class="space-y-6" id="upload-form">                                    
             <!-- Title -->
             <div>
-                <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
-                <input type="text" 
-                       id="title" 
-                       name="title" 
-                       required 
+                <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>                                                       
+                <input type="text"
+                       id="title"
+                       name="title"
+                       required
                        maxlength="500"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"           
                        placeholder="Enter material title">
                 <p class="mt-1 text-xs text-gray-500">Maximum 500 characters</p>
-            </div>
+            </div>                                                              
 
             <!-- Description -->
             <div>
-                <label for="description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                <textarea id="description" 
-                          name="description" 
+                <label for="description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>                                             
+                <textarea id="description"
+                          name="description"
                           rows="4"
                           maxlength="2000"
-                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
-                          placeholder="Enter material description (optional)"></textarea>
-                <p class="mt-1 text-xs text-gray-500">Maximum 2000 characters</p>
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"        
+                          placeholder="Enter material description (optional)"></textarea>                                                                       
+                <p class="mt-1 text-xs text-gray-500">Maximum 2000 characters</p>                                                                               
             </div>
 
-            <!-- File Upload -->
+            <!-- Upload Type Selection -->
             <div>
-                <label for="file" class="block text-sm font-semibold text-gray-700 mb-2">File *</label>
-                <input type="file" 
-                       id="file" 
-                       name="file" 
-                       required
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.csv,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                <label class="block text-sm font-semibold text-gray-700 mb-3">Upload Type *</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="upload_type" value="file" checked class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-file">
+                        <span class="text-gray-700">Upload File</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="upload_type" value="drive" class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-drive">
+                        <span class="text-gray-700">Google Drive Link</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div id="file-upload-section">
+                <label for="file" class="block text-sm font-semibold text-gray-700 mb-2">File *</label>                                                         
+                <input type="file"
+                       id="file"
+                       name="file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.csv,.xlsx,.xls,.ppt,.pptx,.txt,.zip,.rar"                                                  
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">          
                 <p class="mt-1 text-xs text-gray-500">
-                    Allowed formats: PDF, DOC, DOCX, JPG, PNG, GIF, CSV, XLSX, XLS, PPT, PPTX, TXT, ZIP, RAR
+                    Allowed formats: PDF, DOC, DOCX, JPG, PNG, GIF, CSV, XLSX, XLS, PPT, PPTX, TXT, ZIP, RAR                                                    
                 </p>
             </div>
 
-                        <!-- Info Box -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">      
+            <!-- Google Drive Link Section -->
+            <div id="drive-link-section" class="hidden">
+                <label for="google_drive_link" class="block text-sm font-semibold text-gray-700 mb-2">Google Drive Link *</label>                                                         
+                <input type="url"
+                       id="google_drive_link"
+                       name="google_drive_link"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                       placeholder="https://drive.google.com/file/d/... or https://docs.google.com/...">
+                <p class="mt-1 text-xs text-gray-500">
+                    Paste the full Google Drive link. Make sure the file is set to "Anyone with the link can view"
+                </p>
+            </div>
+
+            <!-- Featured Image Upload -->
+            <div>
+                <label for="featured_image" class="block text-sm font-semibold text-gray-700 mb-2">Featured Image (Optional)</label>
+                <input type="file"
+                       id="featured_image"
+                       name="featured_image"
+                       accept=".jpg,.jpeg,.png,.gif,.webp"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                <p class="mt-1 text-xs text-gray-500">
+                    Upload a featured image to make the material more appealing. Allowed formats: JPG, PNG, GIF, WEBP
+                </p>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">                                                                            
                 <p class="text-sm text-blue-800 font-semibold mb-2">
                     <strong>ℹ️ Upload Information:</strong>
                 </p>
-                <ul class="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                    <li>Maximum file size: <strong>10MB</strong></li>
-                    <li>Files are uploaded to <strong>ImageKit</strong> cloud storage</li>
-                    <li>Supported formats: PDF, DOC, DOCX, JPG, PNG, GIF, CSV, XLSX, XLS, PPT, PPTX, TXT, ZIP, RAR</li>
+                <ul class="text-sm text-blue-700 space-y-1 ml-4 list-disc" id="info-list">     
+                    <li>Maximum file size: <strong>10MB</strong> (for direct uploads)</li>
+                    <li>Files are uploaded to <strong>ImageKit</strong> cloud storage</li>                                                                      
+                    <li>Supported formats: PDF, DOC, DOCX, JPG, PNG, GIF, CSV, XLSX, XLS, PPT, PPTX, TXT, ZIP, RAR</li>                                         
                     <li>Files are accessible to all registered users via the Materials page</li>
+                    <li>You can use either file upload or Google Drive link</li>
+                    <li>Featured images help make materials more visually appealing</li>
                 </ul>
                 {% if not imagekit %}
-                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">
-                    <p class="text-sm text-yellow-800">
-                        <strong>⚠️ Warning:</strong> ImageKit is not configured. Please set IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, and IMAGEKIT_URL_ENDPOINT environment variables.
+                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">                                                                           
+                    <p class="text-sm text-yellow-800 font-semibold mb-2">     
+                        <strong>⚠️ Warning:</strong> ImageKit is not configured.
                     </p>
+                    <p class="text-sm text-yellow-700 mb-2">
+                        Please set the following environment variables in Vercel:                                                                              
+                    </p>
+                    <ul class="text-sm text-yellow-700 ml-4 list-disc space-y-1">                                                                              
+                        <li><code>IMAGEKIT_PRIVATE_KEY</code></li>
+                        <li><code>IMAGEKIT_PUBLIC_KEY</code></li>
+                        <li><code>IMAGEKIT_URL_ENDPOINT</code></li>
+                    </ul>
+                    {% if imagekit_init_error %}
+                    <p class="text-xs text-yellow-600 mt-2 pt-2 border-t border-yellow-200">                                                                   
+                        <strong>Error Details:</strong> {{ imagekit_init_error }}
+                    </p>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -73,15 +128,62 @@
             <!-- Buttons -->
             <div class="flex flex-col sm:flex-row gap-3">
                 <button type="submit" 
-                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">                                                                      
                     Upload Material
                 </button>
-                <a href="{{ url_for('admin_materials') }}" 
-                   class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold transition text-center shadow-sm hover:shadow active:scale-95">
+                <a href="{{ url_for('admin_materials') }}"
+                   class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold transition text-center shadow-sm hover:shadow active:scale-95">                                                                 
                     Cancel
                 </a>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    // Toggle between file upload and Google Drive link
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadTypeFile = document.getElementById('upload-type-file');
+        const uploadTypeDrive = document.getElementById('upload-type-drive');
+        const fileUploadSection = document.getElementById('file-upload-section');
+        const driveLinkSection = document.getElementById('drive-link-section');
+        const fileInput = document.getElementById('file');
+        const driveLinkInput = document.getElementById('google_drive_link');
+        const uploadForm = document.getElementById('upload-form');
+
+        function toggleUploadType() {
+            if (uploadTypeFile.checked) {
+                fileUploadSection.classList.remove('hidden');
+                driveLinkSection.classList.add('hidden');
+                fileInput.setAttribute('required', 'required');
+                driveLinkInput.removeAttribute('required');
+            } else {
+                fileUploadSection.classList.add('hidden');
+                driveLinkSection.classList.remove('hidden');
+                fileInput.removeAttribute('required');
+                driveLinkInput.setAttribute('required', 'required');
+            }
+        }
+
+        uploadTypeFile.addEventListener('change', toggleUploadType);
+        uploadTypeDrive.addEventListener('change', toggleUploadType);
+
+        // Initialize on page load
+        toggleUploadType();
+
+        // Form validation
+        uploadForm.addEventListener('submit', function(e) {
+            if (uploadTypeFile.checked && (!fileInput.files || fileInput.files.length === 0)) {
+                e.preventDefault();
+                alert('Please select a file to upload.');
+                return false;
+            }
+            if (uploadTypeDrive.checked && !driveLinkInput.value.trim()) {
+                e.preventDefault();
+                alert('Please provide a Google Drive link.');
+                return false;
+            }
+        });
+    });
+</script>
 {% endblock %}
