@@ -4863,7 +4863,79 @@ def init_db():
                         print("✓ end_date column already exists in adverts")
             except Exception as e:
                 print(f"⚠ Error during adverts migration: {e}")
-            
+
+            # Migrate: Add google_drive_link and featured_image_url columns to educational_materials if they don't exist
+            try:
+                with db.engine.connect() as conn:
+                    # Check which columns exist
+                    result = conn.execute(text("""
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name='educational_materials' AND column_name IN ('google_drive_link', 'featured_image_url')
+                    """))
+                    existing_columns = [row[0] for row in result]
+
+                    # Add google_drive_link column if it doesn't exist
+                    if 'google_drive_link' not in existing_columns:
+                        print("⚠ Migrating educational_materials table: adding google_drive_link column...")
+                        conn.execute(text("ALTER TABLE educational_materials ADD COLUMN google_drive_link VARCHAR(1000)"))
+                        conn.commit()
+                        print("✓ Migration complete: google_drive_link column added to educational_materials")
+                    else:
+                        print("✓ google_drive_link column already exists in educational_materials")
+
+                    # Add featured_image_url column if it doesn't exist
+                    if 'featured_image_url' not in existing_columns:
+                        print("⚠ Migrating educational_materials table: adding featured_image_url column...")
+                        conn.execute(text("ALTER TABLE educational_materials ADD COLUMN featured_image_url VARCHAR(1000)"))
+                        conn.commit()
+                        print("✓ Migration complete: featured_image_url column added to educational_materials")
+                    else:
+                        print("✓ featured_image_url column already exists in educational_materials")
+
+                    # Check and make file_url nullable if needed
+                    result = conn.execute(text("""
+                        SELECT is_nullable 
+                        FROM information_schema.columns 
+                        WHERE table_name='educational_materials' AND column_name='file_url'
+                    """))
+                    row = result.fetchone()
+                    if row and row[0] == 'NO':
+                        print("⚠ Migrating educational_materials table: making file_url nullable...")
+                        conn.execute(text("ALTER TABLE educational_materials ALTER COLUMN file_url DROP NOT NULL"))
+                        conn.commit()
+                        print("✓ Migration complete: file_url is now nullable")
+
+                    # Check and make file_name nullable if needed
+                    result = conn.execute(text("""
+                        SELECT is_nullable 
+                        FROM information_schema.columns 
+                        WHERE table_name='educational_materials' AND column_name='file_name'
+                    """))
+                    row = result.fetchone()
+                    if row and row[0] == 'NO':
+                        print("⚠ Migrating educational_materials table: making file_name nullable...")
+                        conn.execute(text("ALTER TABLE educational_materials ALTER COLUMN file_name DROP NOT NULL"))
+                        conn.commit()
+                        print("✓ Migration complete: file_name is now nullable")
+
+                    # Check and make file_type nullable if needed
+                    result = conn.execute(text("""
+                        SELECT is_nullable 
+                        FROM information_schema.columns 
+                        WHERE table_name='educational_materials' AND column_name='file_type'
+                    """))
+                    row = result.fetchone()
+                    if row and row[0] == 'NO':
+                        print("⚠ Migrating educational_materials table: making file_type nullable...")
+                        conn.execute(text("ALTER TABLE educational_materials ALTER COLUMN file_type DROP NOT NULL"))
+                        conn.commit()
+                        print("✓ Migration complete: file_type is now nullable")
+            except Exception as e:
+                print(f"⚠ Error during educational_materials migration: {e}")
+                import traceback
+                traceback.print_exc()
+
             # Create default admin if doesn't exist
             admin = Admin.query.filter_by(username='admin').first()
             if not admin:
