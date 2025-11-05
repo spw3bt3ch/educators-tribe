@@ -22,19 +22,33 @@ with app.app_context():
             else:
                 print("✓ google_drive_link column already exists")
             
-            # Check and add featured_image_url column
+                        # Check and add featured_image_url column
             result = conn.execute(text("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name='educational_materials' AND column_name='featured_image_url'
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='educational_materials' AND column_name='featured_image_url'                                                                   
             """))
             if result.fetchone() is None:
-                print("Adding featured_image_url column to educational_materials table...")
+                print("Adding featured_image_url column to educational_materials table...")                                                                     
                 conn.execute(text("ALTER TABLE educational_materials ADD COLUMN featured_image_url VARCHAR(1000)"))
                 conn.commit()
                 print("✓ Added featured_image_url column")
             else:
                 print("✓ featured_image_url column already exists")
+
+            # Check and add external_url column
+            result = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='educational_materials' AND column_name='external_url'                                                                   
+            """))
+            if result.fetchone() is None:
+                print("Adding external_url column to educational_materials table...")                                                                     
+                conn.execute(text("ALTER TABLE educational_materials ADD COLUMN external_url VARCHAR(1000)"))
+                conn.commit()
+                print("✓ Added external_url column")
+            else:
+                print("✓ external_url column already exists")
             
             # Make file_url nullable (if it's not already)
             result = conn.execute(text("""

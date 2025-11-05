@@ -1849,6 +1849,18 @@ def news_fetcher_thread():
             time.sleep(3600)
 
 # Routes
+# Ensure migrations run before handling requests (safety net for Vercel/serverless)
+@app.before_request
+def ensure_migrations():
+    """Ensure database migrations have run"""
+    if db_connected and (not hasattr(app, '_migrations_run') or not app._migrations_run):
+        try:
+            init_db()
+            app._migrations_run = True
+        except Exception as e:
+            print(f"⚠ Error running migrations in before_request: {e}")
+            # Continue anyway - the error will be visible in logs
+
 @app.route('/')
 def index():
     """Homepage"""
@@ -5368,18 +5380,27 @@ def admin_delete_material(material_id):
     
     return redirect(url_for('admin_materials'))
 
+# Initialize database migrations (runs on both local and Vercel)
+# Use a flag to prevent multiple executions
+if not hasattr(app, '_migrations_run'):
+    try:
+        with app.app_context():
+            init_db()
+        app._migrations_run = True
+    except Exception as e:
+        print(f"⚠ Error running migrations on startup: {e}")
+        # Don't fail the app, migrations will be retried on next request
+        app._migrations_run = False
+
 if __name__ == '__main__':
-    # Initialize database
-    init_db()
-    
     # Start news fetcher thread (only if PostgreSQL is connected)
     if db_connected:
-        thread = threading.Thread(target=news_fetcher_thread, daemon=True)
+        thread = threading.Thread(target=news_fetcher_thread, daemon=True)      
         thread.start()
     else:
         print("⚠ Application starting without database connection")
-        print("⚠ Some features may not work properly until PostgreSQL is connected")
-    
+        print("⚠ Some features may not work properly until PostgreSQL is connected")                                                                          
+
     # Only run Socket.IO server in local development (not on Vercel)
     if socketio:
         socketio.run(app, debug=True, host='0.0.0.0', port=5000)
