@@ -5399,6 +5399,137 @@ def admin_delete_material(material_id):
     
     return redirect(url_for('admin_materials'))
 
+@app.route('/admin/materials/<int:material_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_material(material_id):
+    """Admin - Edit educational material"""
+    if not db_connected:
+        flash('Database not available. Please try again later.', 'danger')    
+        return redirect(url_for('admin_materials'))
+
+    material = EducationalMaterial.query.get_or_404(material_id)
+
+    if request.method == 'POST':
+        try:
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            file = request.files.get('file')
+            google_drive_link = request.form.get('google_drive_link', '').strip()
+            external_url = request.form.get('external_url', '').strip()
+            featured_image_type = request.form.get('featured_image_type', 'upload')
+            featured_image_url_input = request.form.get('featured_image_url', '').strip()
+            featured_image = request.files.get('featured_image')
+            upload_type = request.form.get('upload_type', 'file')
+
+            if not title:
+                flash('Title is required.', 'danger')
+                return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+            # Validate upload type if changing the source
+            if upload_type == 'file' and file and file.filename:
+                # Validate file type
+                allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}
+                filename = secure_filename(file.filename)
+                file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+
+                if file_extension not in allowed_extensions:
+                    flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(sorted(allowed_extensions))}', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                # Get file size and validate
+                file.seek(0, os.SEEK_END)
+                file_size = file.tell()
+                file.seek(0)
+
+                max_size_mb = 10
+                max_size_bytes = max_size_mb * 1024 * 1024
+                if file_size > max_size_bytes:
+                    file_size_mb = file_size / (1024 * 1024)
+                    flash(f'File size ({file_size_mb:.2f}MB) exceeds the maximum allowed size of {max_size_mb}MB.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                if file_size == 0:
+                    flash('The selected file is empty.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                if not imagekit:
+                    flash('File upload service is not configured.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                # Upload new file
+                file_url = upload_file_to_imagekit(file, folder_name='materials', fallback_to_local=False)
+                if not file_url:
+                    flash('Failed to upload file. Please try again.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                
+                material.file_url = file_url
+                material.file_name = filename
+                material.file_type = file_extension
+                material.file_size = file_size
+                material.google_drive_link = None
+                material.external_url = None
+            elif upload_type == 'drive':
+                if not google_drive_link:
+                    flash('Please provide a Google Drive link.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:
+                    flash('Please provide a valid Google Drive link.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                material.google_drive_link = google_drive_link
+                material.external_url = None
+            elif upload_type == 'external':
+                if not external_url:
+                    flash('Please provide an external URL.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                if not external_url.startswith(('http://', 'https://')):
+                    flash('Please provide a valid URL.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                material.external_url = external_url
+                material.google_drive_link = None
+
+            # Handle featured image update
+            if featured_image_type == 'url' and featured_image_url_input:
+                if not featured_image_url_input.startswith(('http://', 'https://')):
+                    flash('Please provide a valid featured image URL.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+                material.featured_image_url = featured_image_url_input
+            elif featured_image and featured_image.filename:
+                allowed_image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+                image_filename = secure_filename(featured_image.filename)
+                image_extension = image_filename.rsplit('.', 1)[1].lower() if '.' in image_filename else ''
+
+                if image_extension not in allowed_image_extensions:
+                    flash(f'Featured image type .{image_extension} is not allowed.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                if not imagekit:
+                    flash('ImageKit is not configured.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+                featured_image_url = upload_image_to_imagekit(featured_image, folder_name='materials/featured', fallback_to_local=False)
+                if featured_image_url:
+                    material.featured_image_url = featured_image_url
+
+            # Update basic fields
+            material.title = title
+            material.description = description
+            material.updated_at = datetime.utcnow()
+
+            db.session.commit()
+            flash(f'Material "{title}" updated successfully!', 'success')
+            return redirect(url_for('admin_materials'))
+
+        except Exception as e:
+            print(f"Error updating material: {e}")
+            import traceback
+            traceback.print_exc()
+            db.session.rollback()
+            flash(f'An error occurred while updating the material: {str(e)}', 'danger')
+            return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
+    # GET request - show edit form
+    return render_template('admin_upload_material.html', imagekit=imagekit, material=material, is_edit=True)
+
 # Initialize database migrations (runs on both local and Vercel)
 # Use a flag to prevent multiple executions
 if not hasattr(app, '_migrations_run'):
