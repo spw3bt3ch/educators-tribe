@@ -5198,6 +5198,8 @@ def admin_upload_material():
             google_drive_link = request.form.get('google_drive_link', '').strip()
             external_url = request.form.get('external_url', '').strip()
             featured_image = request.files.get('featured_image')
+            featured_image_type = request.form.get('featured_image_type', 'upload')  # 'upload' or 'url'
+            featured_image_url_input = request.form.get('featured_image_url', '').strip()
             upload_type = request.form.get('upload_type', 'file')  # 'file', 'drive', or 'external'
 
             if not title:
@@ -5278,8 +5280,25 @@ def admin_upload_material():
                     flash(error_msg, 'danger')
                     return render_template('admin_upload_material.html', imagekit=imagekit)
 
-            # Handle featured image upload (optional)
-            if featured_image and featured_image.filename:
+            # Handle featured image (optional) - either upload or URL
+            featured_image_url = None
+            
+            if featured_image_type == 'url':
+                # Featured image provided as URL
+                if featured_image_url_input:
+                    # Validate URL format
+                    if not featured_image_url_input.startswith(('http://', 'https://')):
+                        flash('Please provide a valid featured image URL (must start with http:// or https://).', 'danger')
+                        return render_template('admin_upload_material.html', imagekit=imagekit)
+                    # Optional: Validate that it's an image URL (check common image extensions)
+                    image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg')
+                    url_lower = featured_image_url_input.lower()
+                    if not any(url_lower.endswith(ext) for ext in image_extensions) and not any(ext in url_lower for ext in ['/image', 'image/', '.jpg', '.jpeg', '.png', '.gif', '.webp']):
+                        # Not a strict validation, but warn if it doesn't look like an image URL
+                        pass  # Allow it anyway - user knows what they're doing
+                    featured_image_url = featured_image_url_input
+            elif featured_image and featured_image.filename:
+                # Featured image provided as file upload
                 # Validate featured image type
                 allowed_image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
                 image_filename = secure_filename(featured_image.filename)
