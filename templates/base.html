@@ -77,6 +77,8 @@
                                 <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                                     <a href="{{ url_for('admin_dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Dashboard</a>
                                     <a href="{{ url_for('admin_adverts') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Adverts</a>
+                                    <div class="border-t border-gray-200 my-1"></div>
+                                    <a href="{{ url_for('materials') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Materials</a>
                                 </div>
                             </div>
                         {% else %}
@@ -140,6 +142,8 @@
                             <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Admin</div>
                             <a href="{{ url_for('admin_dashboard') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Dashboard</a>
                             <a href="{{ url_for('admin_adverts') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Adverts</a>
+                            <div class="border-t border-green-500 my-2"></div>
+                            <a href="{{ url_for('materials') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Materials</a>
                         {% else %}
                             <div class="border-t border-green-500 my-2"></div>
                             <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Content</div>
@@ -213,7 +217,7 @@
                     <h3 class="text-base sm:text-lg font-semibold mb-4">Contact</h3>
                     <ul class="space-y-2 text-gray-300">
                         <li><a href="{{ url_for('contact') }}" class="hover:text-white transition">Contact Support</a></li>
-                        <li><a href="mailto:ttribetechsupport@gmail.com" class="hover:text-white transition">ttribetechsupport@gmail.com</a></li>
+                        <li><a href="mailto:educatorstribe04@gmail.com" class="hover:text-white transition">educatorstribe04@gmail.com</a></li>
                         <li><a href="tel:07077705842" class="hover:text-white transition">07077705842</a></li>
                         <li><a href="https://wa.me/2347077705842" target="_blank" rel="noopener noreferrer" class="hover:text-white transition">WhatsApp: 07077705842</a></li>
                     </ul>
