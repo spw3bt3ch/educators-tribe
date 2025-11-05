@@ -11,6 +11,39 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        
+        /* Ensure navigation menu button is always clickable */
+        #mobile-menu-button {
+            position: relative;
+            z-index: 1000 !important;
+            pointer-events: auto !important;
+            cursor: pointer !important;
+        }
+        
+        /* Ensure navigation bar stays above other content */
+        nav {
+            position: relative;
+            z-index: 1000 !important;
+        }
+        
+        /* Dropdown menu styling */
+        .group:hover .group-hover\:visible {
+            visibility: visible;
+        }
+        
+        /* Keep dropdown open on hover and focus */
+        .group:focus-within .group-hover\:visible {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Improve touch interaction for mobile dropdowns */
+        @media (hover: none) and (pointer: coarse) {
+            .group:active .group-hover\:visible {
+                visibility: visible;
+                opacity: 1;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -28,22 +61,56 @@
                     </a>
                 </div>
                 
-                <div class="hidden md:flex items-center space-x-4">
+                <div class="hidden md:flex items-center space-x-2">
                     <a href="{{ url_for('index') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Home</a>
-                    <a href="{{ url_for('news') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">News</a>
-                    {% if request.endpoint != 'index' %}<a href="{{ url_for('blog') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Blog</a>{% endif %}
-                    <a href="{{ url_for('materials') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Materials</a>
                     <a href="{{ url_for('contact') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Contact</a>
                     {% if current_user.is_authenticated %}
                         {% if current_user.__class__.__name__ == 'Admin' %}
-                            <a href="{{ url_for('admin_dashboard') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Admin Dashboard</a>
-                            <a href="{{ url_for('admin_adverts') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Adverts</a>
+                            <!-- Admin Menu -->
+                            <div class="relative group">
+                                <button type="button" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition flex items-center">
+                                    Admin
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                    <a href="{{ url_for('admin_dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Dashboard</a>
+                                    <a href="{{ url_for('admin_adverts') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Adverts</a>
+                                </div>
+                            </div>
                         {% else %}
-                            <a href="{{ url_for('create_post') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Write Post</a>
-                            <a href="{{ url_for('chat') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Chat</a>
-                            <a href="{{ url_for('profile') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Profile</a>
-                            <a href="{{ url_for('submit_advert') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">Submit Ad</a>
-                            <a href="{{ url_for('my_adverts') }}" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition">My Adverts</a>
+                            <!-- Content Menu -->
+                            <div class="relative group">
+                                <button type="button" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition flex items-center">
+                                    Content
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                    <a href="{{ url_for('create_post') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Write Post</a>
+                                    {% if request.endpoint != 'index' %}<a href="{{ url_for('blog') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Blog</a>{% endif %}
+                                    <a href="{{ url_for('news') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">News</a>
+                                    <a href="{{ url_for('materials') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Materials</a>
+                                </div>
+                            </div>
+                            <!-- Account Menu -->
+                            <div class="relative group">
+                                <button type="button" class="text-white hover:text-green-200 px-3 py-2 rounded-md text-sm font-medium transition flex items-center">
+                                    Account
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                    <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Profile</a>
+                                    <a href="{{ url_for('chat') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Chat</a>
+                                    <div class="border-t border-gray-200 my-1"></div>
+                                    <a href="{{ url_for('submit_advert') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">Submit Ad</a>
+                                    <a href="{{ url_for('my_adverts') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">My Adverts</a>
+                                </div>
+                            </div>
                         {% endif %}
                         <a href="{{ url_for('logout') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">Logout</a>
                     {% else %}
@@ -63,28 +130,39 @@
             </div>
             
             <!-- Mobile menu -->
-            <div id="mobile-menu" class="hidden md:hidden pb-4 space-y-1">
-                <a href="{{ url_for('index') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Home</a>
-                <a href="{{ url_for('news') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">News</a>
-                {% if request.endpoint != 'index' %}<a href="{{ url_for('blog') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Blog</a>{% endif %}
-                <a href="{{ url_for('materials') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Materials</a>
-                <a href="{{ url_for('contact') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Contact</a>
-                {% if current_user.is_authenticated %}
-                    {% if current_user.__class__.__name__ == 'Admin' %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Admin Dashboard</a>
-                        <a href="{{ url_for('admin_adverts') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Adverts</a>
+            <div id="mobile-menu" class="hidden md:hidden pb-4">
+                <div class="space-y-1">
+                    <a href="{{ url_for('index') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Home</a>
+                    <a href="{{ url_for('contact') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Contact</a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.__class__.__name__ == 'Admin' %}
+                            <div class="border-t border-green-500 my-2"></div>
+                            <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Admin</div>
+                            <a href="{{ url_for('admin_dashboard') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Dashboard</a>
+                            <a href="{{ url_for('admin_adverts') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Adverts</a>
+                        {% else %}
+                            <div class="border-t border-green-500 my-2"></div>
+                            <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Content</div>
+                            <a href="{{ url_for('create_post') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Write Post</a>
+                            {% if request.endpoint != 'index' %}<a href="{{ url_for('blog') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Blog</a>{% endif %}
+                            <a href="{{ url_for('news') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">News</a>
+                            <a href="{{ url_for('materials') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Materials</a>
+                            <div class="border-t border-green-500 my-2"></div>
+                            <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Account</div>
+                            <a href="{{ url_for('profile') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Profile</a>
+                            <a href="{{ url_for('chat') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Chat</a>
+                            <div class="border-t border-green-500 my-2"></div>
+                            <div class="px-3 py-2 text-xs font-semibold text-green-200 uppercase tracking-wider">Adverts</div>
+                            <a href="{{ url_for('submit_advert') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">Submit Ad</a>
+                            <a href="{{ url_for('my_adverts') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition pl-6">My Adverts</a>
+                        {% endif %}
+                        <div class="border-t border-green-500 my-2"></div>
+                        <a href="{{ url_for('logout') }}" class="block bg-green-600 hover:bg-green-700 text-white px-3 py-2.5 rounded-md text-base font-medium mt-2 shadow-md">Logout</a>
                     {% else %}
-                        <a href="{{ url_for('create_post') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Write Post</a>
-                        <a href="{{ url_for('chat') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Chat</a>
-                        <a href="{{ url_for('profile') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Profile</a>
-                        <a href="{{ url_for('submit_advert') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Submit Ad</a>
-                        <a href="{{ url_for('my_adverts') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">My Adverts</a>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="block bg-green-600 hover:bg-green-700 text-white px-3 py-2.5 rounded-md text-base font-medium mt-2 shadow-md">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Login</a>
+                        <a href="{{ url_for('login') }}" class="block text-white hover:text-green-200 hover:bg-green-700 px-3 py-2.5 rounded-md text-base font-medium transition">Login</a>
                         <a href="{{ url_for('register') }}" class="block bg-white text-green-600 hover:bg-green-50 px-3 py-2.5 rounded-md text-base font-medium mt-2 shadow-md">Register</a>
-                {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </nav>
@@ -161,17 +239,125 @@
     </footer>
 
     <script>
-        // Mobile menu toggle
-        document.getElementById('mobile-menu-button')?.addEventListener('click', function() {
-            const menu = document.getElementById('mobile-menu');
-            menu.classList.toggle('hidden');
+        // Mobile menu toggle - ensure it works on all pages
+        function initMobileMenu() {
+            const menuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            if (menuButton && mobileMenu) {
+                // Remove any existing listeners by cloning the button
+                var newButton = menuButton.cloneNode(true);
+                menuButton.parentNode.replaceChild(newButton, menuButton);
+                
+                // Attach click handler
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Navigation menu button clicked');
+                    mobileMenu.classList.toggle('hidden');
+                }, false);
+                
+                // Also add touchstart for mobile
+                newButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Navigation menu button touched');
+                    mobileMenu.classList.toggle('hidden');
+                }, false);
+                
+                console.log('Navigation menu initialized');
+            } else {
+                console.error('Navigation menu button or menu not found');
+            }
+        }
+        
+        // Desktop dropdown menu toggle for touch devices
+        function initDropdownMenus() {
+            // Only initialize on desktop (not mobile menu)
+            if (window.innerWidth >= 768) {
+                const dropdownGroups = document.querySelectorAll('nav .group');
+                
+                dropdownGroups.forEach(function(group) {
+                    const button = group.querySelector('button');
+                    const dropdown = group.querySelector('.absolute');
+                    
+                    if (button && dropdown) {
+                        // Toggle dropdown on click (for touch devices)
+                        button.addEventListener('click', function(e) {
+                            // Check if it's a touch device
+                            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                // Close other dropdowns
+                                dropdownGroups.forEach(function(otherGroup) {
+                                    if (otherGroup !== group) {
+                                        const otherDropdown = otherGroup.querySelector('.absolute');
+                                        if (otherDropdown) {
+                                            otherDropdown.classList.add('opacity-0', 'invisible');
+                                        }
+                                    }
+                                });
+                                
+                                // Toggle current dropdown
+                                dropdown.classList.toggle('opacity-0');
+                                dropdown.classList.toggle('invisible');
+                            }
+                        });
+                    }
+                });
+                
+                // Close dropdowns when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('nav .group')) {
+                        dropdownGroups.forEach(function(group) {
+                            const dropdown = group.querySelector('.absolute');
+                            if (dropdown) {
+                                dropdown.classList.add('opacity-0', 'invisible');
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initMobileMenu();
+                initDropdownMenus();
+            });
+        } else {
+            // DOM already loaded
+            setTimeout(function() {
+                initMobileMenu();
+                initDropdownMenus();
+            }, 100);
+        }
+        
+        // Also try to initialize after a short delay in case scripts load in different order
+        setTimeout(function() {
+            initMobileMenu();
+            initDropdownMenus();
+        }, 500);
+        
+        // Reinitialize dropdowns on window resize
+        window.addEventListener('resize', function() {
+            initDropdownMenus();
         });
 
-        // Initialize Socket.IO
-        const socket = io();
-        socket.on('connect', function() {
-            console.log('Connected to server');
-        });
+        // Initialize Socket.IO (only if not already initialized by chat page)
+        if (typeof io !== 'undefined' && !window.socketInitialized) {
+            try {
+                const socket = io();
+                socket.on('connect', function() {
+                    console.log('Connected to server');
+                });
+                window.socketInitialized = true;
+            } catch (error) {
+                console.error('Error initializing Socket.IO in base template:', error);
+            }
+        }
     </script>
     
     {% block extra_scripts %}{% endblock %}

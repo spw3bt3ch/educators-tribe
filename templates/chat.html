@@ -144,9 +144,9 @@
             </div>
             
             <!-- Chat Area -->
-            <div class="flex-1 flex flex-col min-w-0">
+            <div class="flex-1 flex flex-col min-w-0 h-full">
                 <!-- Chat Header - Shows back button on mobile -->
-                <div id="chat-header" class="p-3 sm:p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white hidden">
+                <div id="chat-header" class="p-3 sm:p-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white hidden flex-shrink-0">
                     <div class="flex items-center space-x-3">
                         <button id="mobile-back-button" class="lg:hidden text-gray-600 hover:text-gray-800 mr-2">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +162,7 @@
                 </div>
                 
                                                 <!-- Messages Area -->
-                <div id="messages-container" class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 via-white to-gray-50 flex flex-col">
+                <div id="messages-container" class="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 via-white to-gray-50 flex flex-col min-h-0">
                     <div id="no-chat-selected" class="flex items-center justify-center h-full text-gray-500">
                         <div class="text-center px-4">
                             <svg class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +177,7 @@
                 </div>
                 
                 <!-- Message Input - Always Visible -->
-                <div id="message-input-container" class="p-4 sm:p-5 border-t-2 border-gray-200 bg-white shadow-xl">
+                <div id="message-input-container" class="p-4 sm:p-5 border-t-2 border-gray-200 bg-white shadow-xl flex-shrink-0">
                     <form id="message-form" class="flex items-end gap-3">
                         <div class="flex-1 relative bg-gray-100 rounded-full border-2 border-gray-200 focus-within:border-green-500 focus-within:bg-white transition-all">
                             <textarea id="message-input" rows="1" placeholder="Type a message..." 
@@ -376,6 +376,8 @@
             reconnectionAttempts: 5,
             timeout: 20000
         });
+        // Mark as initialized to prevent base.html from initializing again
+        window.socketInitialized = true;
     } catch (error) {
         console.error('Error initializing Socket.IO:', error);
         // Create a mock socket object to prevent errors
@@ -384,6 +386,7 @@
             emit: function() {},
             disconnect: function() {}
         };
+        window.socketInitialized = true;
     }
     
     let currentChatUserId = null;
@@ -1118,6 +1121,27 @@
              pointer-events: auto !important;
              cursor: pointer !important;
          }
+         
+                 /* Ensure navigation menu button is always accessible */
+        #mobile-menu-button {
+            position: relative !important;
+            z-index: 1001 !important;
+            pointer-events: auto !important;
+            cursor: pointer !important;
+        }
+        
+        /* Ensure navigation bar stays above chat content */
+        nav.bg-gradient-to-r {
+            z-index: 1000 !important;
+            position: relative !important;
+        }
+        
+        /* Ensure message input container is always visible */
+        #message-input-container {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
         
         /* Chat container full height on mobile */
         .bg-white.rounded-xl {
@@ -1211,13 +1235,16 @@
         
         /* Message input container on mobile */
         #message-input-container {
-            position: sticky;
-            bottom: 0;
-            z-index: 10;
-            padding: 1rem;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 10 !important;
+            padding: 1rem !important;
+            background: white !important;
+            border-top: 1px solid #e5e7eb !important;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1) !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         #message-form {
