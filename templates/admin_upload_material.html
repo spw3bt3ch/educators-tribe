@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Educational Material - Admin Dashboard{% endblock %}    
+{% block title %}{% if is_edit %}Edit{% else %}Upload{% endif %} Educational Material - Admin Dashboard{% endblock %}    
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Upload Educational Material</h1>                                                          
-        <p class="text-sm sm:text-base text-gray-600">Add a new educational resource for users to download</p>                                                  
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{% if is_edit %}Edit{% else %}Upload{% endif %} Educational Material</h1>                                                          
+        <p class="text-sm sm:text-base text-gray-600">{% if is_edit %}Update the educational resource details{% else %}Add a new educational resource for users to download{% endif %}</p>                                                  
     </div>
 
     <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 lg:p-8">
-        <form method="POST" action="{{ url_for('admin_upload_material') }}" enctype="multipart/form-data" class="space-y-6" id="upload-form">                                    
+        <form method="POST" action="{% if is_edit %}{{ url_for('admin_edit_material', material_id=material.id) }}{% else %}{{ url_for('admin_upload_material') }}{% endif %}" enctype="multipart/form-data" class="space-y-6" id="upload-form">                                    
             <!-- Title -->
             <div>
                 <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>                                                       
@@ -19,6 +19,7 @@
                        name="title"
                        required
                        maxlength="500"
+                       value="{% if is_edit and material %}{{ material.title }}{% endif %}"
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"           
                        placeholder="Enter material title">
                 <p class="mt-1 text-xs text-gray-500">Maximum 500 characters</p>
@@ -32,7 +33,7 @@
                           rows="4"
                           maxlength="2000"
                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"        
-                          placeholder="Enter material description (optional)"></textarea>                                                                       
+                          placeholder="Enter material description (optional)">{% if is_edit and material %}{{ material.description or '' }}{% endif %}</textarea>                                                                       
                 <p class="mt-1 text-xs text-gray-500">Maximum 2000 characters</p>                                                                               
             </div>
 
@@ -40,18 +41,18 @@
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-3">Upload Type *</label>
                 <div class="flex gap-4">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="upload_type" value="file" checked class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-file">
+                                          <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="upload_type" value="file" {% if not is_edit or (is_edit and material and (material.file_url or (not material.google_drive_link and not material.external_url))) %}checked{% endif %} class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-file">
                         <span class="text-gray-700">Upload File</span>
-                    </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="upload_type" value="drive" class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-drive">
+                      </label>
+                      <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="upload_type" value="drive" {% if is_edit and material and material.google_drive_link %}checked{% endif %} class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-drive">
                         <span class="text-gray-700">Google Drive Link</span>
-                    </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="upload_type" value="external" class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-external">
+                      </label>
+                      <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="upload_type" value="external" {% if is_edit and material and material.external_url %}checked{% endif %} class="w-4 h-4 text-green-600 focus:ring-green-500" id="upload-type-external">
                         <span class="text-gray-700">External URL</span>
-                    </label>
+                      </label>
                 </div>
             </div>
 
@@ -71,11 +72,12 @@
             <!-- Google Drive Link Section -->
             <div id="drive-link-section" class="hidden">
                 <label for="google_drive_link" class="block text-sm font-semibold text-gray-700 mb-2">Google Drive Link *</label>                                                         
-                <input type="url"
-                       id="google_drive_link"
-                       name="google_drive_link"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
-                       placeholder="https://drive.google.com/file/d/... or https://docs.google.com/...">
+                                  <input type="url"
+                         id="google_drive_link"
+                         name="google_drive_link"
+                         value="{% if is_edit and material and material.google_drive_link %}{{ material.google_drive_link }}{% endif %}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition" 
+                         placeholder="https://drive.google.com/file/d/... or https://docs.google.com/...">
                 <p class="mt-1 text-xs text-gray-500">
                     Paste the full Google Drive link. Make sure the file is set to "Anyone with the link can view"
                 </p>
@@ -85,11 +87,12 @@
             <div id="external-url-section" class="hidden">
                 <label for="external_url" class="block text-sm font-semibold text-gray-700 mb-2">External URL *</label>                               
 
-                <input type="url"
-                       id="external_url"
-                       name="external_url"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"           
-                       placeholder="https://example.com/resource.pdf or any external link">                                                        
+                                  <input type="url"
+                         id="external_url"
+                         name="external_url"
+                         value="{% if is_edit and material and material.external_url %}{{ material.external_url }}{% endif %}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                         placeholder="https://example.com/resource.pdf or any external link">                                                        
                 <p class="mt-1 text-xs text-gray-500">
                     Paste any external URL to the material (PDF, webpage, document, etc.)
                 </p>
@@ -103,11 +106,11 @@
                 <div class="mb-3">
                     <div class="flex gap-4">
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="featured_image_type" value="upload" checked class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-upload">
+                            <input type="radio" name="featured_image_type" value="upload" {% if not is_edit or not material or not material.featured_image_url or not (material.featured_image_url[:7] == 'http://' or material.featured_image_url[:8] == 'https://') %}checked{% endif %} class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-upload">
                             <span class="text-gray-700">Upload Image</span>
                         </label>
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="featured_image_type" value="url" class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-url">
+                            <input type="radio" name="featured_image_type" value="url" {% if is_edit and material and material.featured_image_url and (material.featured_image_url[:7] == 'http://' or material.featured_image_url[:8] == 'https://') %}checked{% endif %} class="w-4 h-4 text-green-600 focus:ring-green-500" id="featured-image-type-url">
                             <span class="text-gray-700">Image URL</span>
                         </label>
                     </div>
@@ -130,6 +133,7 @@
                     <input type="url"
                            id="featured_image_url"
                            name="featured_image_url"
+                           value="{% if is_edit and material and material.featured_image_url and (material.featured_image_url[:7] == 'http://' or material.featured_image_url[:8] == 'https://') %}{{ material.featured_image_url }}{% endif %}"
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
                            placeholder="https://example.com/image.jpg">
                     <p class="mt-1 text-xs text-gray-500">
@@ -178,7 +182,7 @@
             <div class="flex flex-col sm:flex-row gap-3">
                 <button type="submit" 
                         class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition shadow-md hover:shadow-lg active:scale-95">                                                                      
-                    Upload Material
+                    {% if is_edit %}Update Material{% else %}Upload Material{% endif %}
                 </button>
                 <a href="{{ url_for('admin_materials') }}"
                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold transition text-center shadow-sm hover:shadow active:scale-95">                                                                 

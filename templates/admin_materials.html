@@ -64,6 +64,10 @@
                         </td>
                         <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex justify-end gap-2">
+                                <a href="{{ url_for('admin_edit_material', material_id=material.id) }}" 
+                                   class="text-green-600 hover:text-green-900 px-2 py-1 rounded hover:bg-green-50 transition">
+                                    Edit
+                                </a>
                                 <form method="POST" action="{{ url_for('admin_toggle_material', material_id=material.id) }}" class="inline">
                                     <button type="submit" class="text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-50 transition">
                                         {% if material.is_active %}Deactivate{% else %}Activate{% endif %}
