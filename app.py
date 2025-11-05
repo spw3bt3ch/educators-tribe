@@ -128,6 +128,62 @@ def datetime_filter(value, format='%Y-%m-%d'):
             return value[:10] if len(value) >= 10 else value
     return value
 
+@app.template_filter('linkify')
+def linkify_filter(text):
+    """Convert URLs in text to clickable links"""
+    if not text:
+        return text
+    
+    import re
+    from markupsafe import Markup
+    
+    # Pattern to match URLs (http://, https://, www., and domains with paths)
+    # This pattern catches:
+    # - http://example.com
+    # - https://example.com
+    # - www.example.com
+    # - example.com/path (domains with paths)
+    url_pattern = r'(?i)\b((?:https?://|www\.)[^\s<>"{}|\\^`\[\]]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}/[^\s<>"{}|\\^`\[\]]*)'
+    
+    def make_link(match):
+        url = match.group(1)
+        # Skip if it's already part of an HTML tag (avoid double-linking)
+        if '<a ' in url or '</a>' in url:
+            return url
+        
+        # Add http:// if URL starts with www.
+        if url.lower().startswith('www.'):
+            href_url = 'http://' + url
+        else:
+            href_url = url
+        
+        # Display URL (truncate if too long for better UI)
+        display_url = url
+        if len(display_url) > 60:
+            display_url = display_url[:57] + '...'
+        
+        return f'<a href="{href_url}" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-800 underline break-all">{display_url}</a>'
+    
+    # Replace URLs with links, but avoid replacing URLs that are already in <a> tags
+    text_str = str(text)
+    
+    # Split text by existing <a> tags to avoid double-linking
+    parts = re.split(r'(<a[^>]*>.*?</a>)', text_str, flags=re.IGNORECASE | re.DOTALL)
+    
+    result_parts = []
+    for part in parts:
+        if part.startswith('<a'):
+            # Already a link, keep as is
+            result_parts.append(part)
+        else:
+            # Process this part for URLs
+            result_parts.append(re.sub(url_pattern, make_link, part))
+    
+    linked_text = ''.join(result_parts)
+    
+    # Mark as safe HTML
+    return Markup(linked_text)
+
 # Context processor to make APP_URL and imagekit available to all templates
 @app.context_processor
 def inject_global_vars():
