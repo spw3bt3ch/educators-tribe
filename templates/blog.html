@@ -66,7 +66,7 @@
                                 <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
                             </h2>
                             
-                            <p class="text-sm sm:text-base text-gray-600 mb-4 line-clamp-3">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                            <p class="text-sm sm:text-base text-gray-600 mb-4 line-clamp-3">{{ (post.content[:200] + ('...' if post.content|length > 200 else ''))|linkify }}</p>
                             
                             <div class="flex items-center justify-between">
                                 <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-green-600 hover:text-green-800 font-medium inline-flex items-center text-sm">

@@ -87,9 +87,9 @@
                     {% endif %}
                 </div>
 
-                <!-- Post Content -->
-                <div class="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {{ post.content }}
+                                <!-- Post Content -->
+                <div class="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">                                                       
+                    {{ post.content|linkify }}
                 </div>
                 
                 <!-- Social Share Buttons -->
@@ -151,7 +151,7 @@
                                 {{ related_post.created_at.strftime('%B %d, %Y') }}
                             {% endif %}
                         </p>
-                        <p class="text-gray-600 text-sm line-clamp-3">{{ related_post.content[:150] }}...</p>
+                        <p class="text-gray-600 text-sm line-clamp-3">{{ (related_post.content[:150] + '...')|linkify }}</p>
                         <a href="{{ url_for('post_detail', post_id=related_post.id) }}" class="text-green-600 hover:text-green-800 font-medium text-sm inline-flex items-center mt-3">
                             Read More
                             <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +221,7 @@
                                     {% endif %}
                                 </p>
                             </div>
-                            <p class="text-sm sm:text-base text-gray-700 whitespace-pre-wrap break-words">{{ comment.content }}</p>
+                            <p class="text-sm sm:text-base text-gray-700 whitespace-pre-wrap break-words">{{ comment.content|linkify }}</p>
                         </div>
                     </div>
                 </div>
