@@ -495,8 +495,9 @@ class EducationalMaterial(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    file_url = db.Column(db.String(1000), nullable=True)  # Optional if google_drive_link is provided
+    file_url = db.Column(db.String(1000), nullable=True)  # Optional if google_drive_link or external_url is provided
     google_drive_link = db.Column(db.String(1000), nullable=True)  # Alternative to file_url
+    external_url = db.Column(db.String(1000), nullable=True)  # Alternative to file_url (any external link)
     featured_image_url = db.Column(db.String(1000), nullable=True)  # Optional featured image
     file_name = db.Column(db.String(500), nullable=True)  # Optional if google_drive_link is provided
     file_type = db.Column(db.String(100), nullable=True)  # Optional if google_drive_link is provided
@@ -1888,8 +1889,10 @@ def download_material(material_id):
         material.download_count += 1
         db.session.commit()
 
-        # Redirect to the file URL or Google Drive link
-        if material.google_drive_link:
+        # Redirect to the file URL, Google Drive link, or external URL
+        if material.external_url:
+            return redirect(material.external_url)
+        elif material.google_drive_link:
             return redirect(material.google_drive_link)
         elif material.file_url:
             return redirect(material.file_url)
@@ -4871,7 +4874,7 @@ def init_db():
                     result = conn.execute(text("""
                         SELECT column_name
                         FROM information_schema.columns
-                        WHERE table_name='educational_materials' AND column_name IN ('google_drive_link', 'featured_image_url')
+                        WHERE table_name='educational_materials' AND column_name IN ('google_drive_link', 'featured_image_url', 'external_url')
                     """))
                     existing_columns = [row[0] for row in result]
 
@@ -4892,6 +4895,15 @@ def init_db():
                         print("✓ Migration complete: featured_image_url column added to educational_materials")
                     else:
                         print("✓ featured_image_url column already exists in educational_materials")
+
+                    # Add external_url column if it doesn't exist
+                    if 'external_url' not in existing_columns:
+                        print("⚠ Migrating educational_materials table: adding external_url column...")
+                        conn.execute(text("ALTER TABLE educational_materials ADD COLUMN external_url VARCHAR(1000)"))
+                        conn.commit()
+                        print("✓ Migration complete: external_url column added to educational_materials")
+                    else:
+                        print("✓ external_url column already exists in educational_materials")
 
                     # Check and make file_url nullable if needed
                     result = conn.execute(text("""
@@ -5116,25 +5128,34 @@ def admin_upload_material():
             description = request.form.get('description', '').strip()
             file = request.files.get('file')
             google_drive_link = request.form.get('google_drive_link', '').strip()
+            external_url = request.form.get('external_url', '').strip()
             featured_image = request.files.get('featured_image')
-            upload_type = request.form.get('upload_type', 'file')  # 'file' or 'drive'
+            upload_type = request.form.get('upload_type', 'file')  # 'file', 'drive', or 'external'
 
             if not title:
                 flash('Title is required.', 'danger')
                 return render_template('admin_upload_material.html', imagekit=imagekit)
 
-            # Validate that either file or Google Drive link is provided
+            # Validate that either file, Google Drive link, or external URL is provided
             if upload_type == 'file':
                 if not file or not file.filename:
                     flash('Please select a file to upload.', 'danger')
                     return render_template('admin_upload_material.html', imagekit=imagekit)
-            else:
+            elif upload_type == 'drive':
                 if not google_drive_link:
                     flash('Please provide a Google Drive link.', 'danger')
                     return render_template('admin_upload_material.html', imagekit=imagekit)
-                                # Validate Google Drive link format
-                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:                                                  
-                    flash('Please provide a valid Google Drive link (must contain drive.google.com or docs.google.com).', 'danger')                             
+                # Validate Google Drive link format
+                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:
+                    flash('Please provide a valid Google Drive link (must contain drive.google.com or docs.google.com).', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+            elif upload_type == 'external':
+                if not external_url:
+                    flash('Please provide an external URL.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+                # Basic URL validation
+                if not external_url.startswith(('http://', 'https://')):
+                    flash('Please provide a valid URL (must start with http:// or https://).', 'danger')
                     return render_template('admin_upload_material.html', imagekit=imagekit)
 
             file_url = None
@@ -5217,6 +5238,7 @@ def admin_upload_material():
                 description=description,
                 file_url=file_url,
                 google_drive_link=google_drive_link if upload_type == 'drive' else None,
+                external_url=external_url if upload_type == 'external' else None,
                 featured_image_url=featured_image_url,
                 file_name=filename,
                 file_type=file_extension,
@@ -5231,8 +5253,10 @@ def admin_upload_material():
             if upload_type == 'file':
                 file_size_mb = file_size / (1024 * 1024) if file_size else 0
                 flash(f'Educational material "{title}" uploaded successfully! File size: {file_size_mb:.2f}MB', 'success')
-            else:
+            elif upload_type == 'drive':
                 flash(f'Educational material "{title}" with Google Drive link added successfully!', 'success')
+            else:
+                flash(f'Educational material "{title}" with external URL added successfully!', 'success')
             return redirect(url_for('admin_materials'))
 
         except Exception as e:
