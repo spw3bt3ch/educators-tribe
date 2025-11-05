@@ -213,30 +213,57 @@ def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_loca
     """
     Upload any file (PDF, DOCX, images, CSV, etc.) to ImageKit and return the URL.
     If ImageKit fails and fallback_to_local is True, saves to local filesystem.
-    
+
     Args:
         file_file: Flask FileStorage object from request.files
         folder_name: Folder name in ImageKit or local storage (default: 'materials')
         fallback_to_local: If True, save locally when ImageKit fails
-    
+
     Returns:
         str: File URL if successful, None if failed
     """
     try:
+        # Check if imagekit is initialized
+        if not imagekit:
+            print("ImageKit not initialized - checking credentials")
+            print(f"IMAGEKIT_PRIVATE_KEY present: {bool(IMAGEKIT_PRIVATE_KEY)}")
+            print(f"IMAGEKIT_PUBLIC_KEY present: {bool(IMAGEKIT_PUBLIC_KEY)}")
+            print(f"IMAGEKIT_URL_ENDPOINT: {IMAGEKIT_URL_ENDPOINT}")
+            
+            # Try to initialize ImageKit if credentials exist
+            if IMAGEKIT_PRIVATE_KEY and IMAGEKIT_PUBLIC_KEY and IMAGEKIT_URL_ENDPOINT:
+                try:
+                    global imagekit
+                    imagekit = ImageKit(
+                        private_key=IMAGEKIT_PRIVATE_KEY,
+                        public_key=IMAGEKIT_PUBLIC_KEY,
+                        url_endpoint=IMAGEKIT_URL_ENDPOINT
+                    )
+                    print("ImageKit initialized successfully in upload function")
+                except Exception as init_error:
+                    print(f"Failed to initialize ImageKit: {init_error}")
+                    if not fallback_to_local:
+                        return None
+
         # Reset file pointer to beginning
         file_file.seek(0)
         file_content = file_file.read()
         file_file.seek(0)  # Reset again for potential local save
-        
+
+        # Check file size (ImageKit has limits)
+        file_size = len(file_content)
+        print(f"File size: {file_size} bytes ({file_size / 1024 / 1024:.2f} MB)")
+
         # Generate unique filename
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         original_filename = secure_filename(file_file.filename)
         file_extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
         unique_filename = f"{timestamp}_{original_filename}"
-        
+
         # Try ImageKit upload
         if imagekit:
             try:
+                print(f"Attempting ImageKit upload: {unique_filename} to folder: {folder_name}")
                 upload_response = imagekit.upload_file(
                     file=file_content,
                     file_name=unique_filename,
@@ -245,41 +272,61 @@ def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_loca
                         "use_unique_file_name": False  # We're already using unique names
                     }
                 )
-                
+
+                print(f"ImageKit upload response type: {type(upload_response)}")
+                print(f"ImageKit upload response: {upload_response}")
+
                 # Return the URL - response format may vary
                 if upload_response:
+                    # Handle different response formats
+                    file_url = None
+                    
                     if isinstance(upload_response, dict):
-                        if 'url' in upload_response:
-                            print(f"ImageKit file upload successful: {upload_response['url']}")
-                            return upload_response['url']
-                        elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
-                            return upload_response['response_metadata']['url']
-                        elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
-                            return upload_response['response']['url']
-                        elif 'data' in upload_response and isinstance(upload_response['data'], dict) and 'url' in upload_response['data']:
-                            return upload_response['data']['url']
+                        file_url = (
+                            upload_response.get('url') or
+                            upload_response.get('response_metadata', {}).get('url') or
+                            upload_response.get('response', {}).get('url') or
+                            upload_response.get('data', {}).get('url')
+                        )
                     elif hasattr(upload_response, 'url'):
-                        print(f"ImageKit file upload successful: {upload_response.url}")
-                        return upload_response.url
+                        file_url = upload_response.url
+                    elif hasattr(upload_response, '__dict__'):
+                        # Try to get URL from object attributes
+                        file_url = getattr(upload_response, 'url', None)
+                    
+                    if file_url:
+                        print(f"ImageKit file upload successful: {file_url}")
+                        return file_url
+                    else:
+                        print(f"ImageKit upload succeeded but no URL found in response: {upload_response}")
+                else:
+                    print("ImageKit upload returned None or empty response")
+                    
             except Exception as e:
                 print(f"ImageKit upload error: {e}")
-        
-        # Fallback to local storage
+                import traceback
+                traceback.print_exc()
+        else:
+            print("ImageKit not available, attempting fallback")
+
+        # Fallback to local storage (only if fallback_to_local is True)
         if fallback_to_local:
             try:
                 local_folder = f"materials/{folder_name}"
                 upload_folder = os.path.join(app_dir, 'static', 'files', local_folder)
                 os.makedirs(upload_folder, exist_ok=True)
-                
+
                 filepath = os.path.join(upload_folder, unique_filename)
                 file_file.save(filepath)
-                
+
                 local_url = url_for('static', filename=f'files/{local_folder}/{unique_filename}')
                 print(f"File saved locally: {local_url}")
                 return local_url
             except Exception as e:
                 print(f"Local file save also failed: {e}")
-        
+                import traceback
+                traceback.print_exc()
+
         return None
     except Exception as e:
         print(f"Error in upload_file_to_imagekit: {e}")
@@ -4960,11 +5007,14 @@ def admin_upload_material():
             file_size = file.tell()
             file.seek(0)
             
-            # Upload file to ImageKit or local storage
-            file_url = upload_file_to_imagekit(file, folder_name='materials')
-            
+                        # Upload file to ImageKit or local storage
+            file_url = upload_file_to_imagekit(file, folder_name='materials', fallback_to_local=False)
+
             if not file_url:
-                flash('Failed to upload file. Please try again.', 'danger')
+                # More detailed error message
+                error_msg = 'Failed to upload file. This could be due to ImageKit configuration or file size limits. Please check ImageKit credentials and try again.'
+                flash(error_msg, 'danger')
+                print(f"Material upload failed - File: {filename}, Size: {file_size} bytes, Type: {file_extension}")
                 return render_template('admin_upload_material.html')
             
             # Create educational material record
