@@ -209,25 +209,45 @@ def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_loca
         return None
 
 # Helper function to upload any file to ImageKit (supports PDF, DOCX, images, etc.)
-def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_local=True):
+def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_local=False):
     """
     Upload any file (PDF, DOCX, images, CSV, etc.) to ImageKit and return the URL.
-    If ImageKit fails and fallback_to_local is True, saves to local filesystem.
+    
+    Note: On Vercel (serverless), fallback_to_local should be False as the filesystem
+    is ephemeral. Files saved locally will be lost when the function completes.
+    
+    For Vercel deployments, ensure ImageKit credentials are properly configured.
+    Alternative storage options if ImageKit fails:
+    1. AWS S3 / Cloudflare R2 / DigitalOcean Spaces (S3-compatible)
+    2. Google Cloud Storage
+    3. Azure Blob Storage
+    4. Supabase Storage
+    5. Direct client-side upload to ImageKit (bypasses serverless size limits)
 
     Args:
         file_file: Flask FileStorage object from request.files
         folder_name: Folder name in ImageKit or local storage (default: 'materials')
-        fallback_to_local: If True, save locally when ImageKit fails
+        fallback_to_local: If True, save locally when ImageKit fails (NOT recommended for Vercel)
 
     Returns:
         str: File URL if successful, None if failed
     """
     try:
+        # Check if file is provided
+        if not file_file or not hasattr(file_file, 'filename'):
+            print("Error: No file provided to upload_file_to_imagekit")
+            return None
+        
         # Reset file pointer to beginning
         file_file.seek(0)
         file_content = file_file.read()
         file_file.seek(0)  # Reset again for potential local save
-
+        
+        # Check file size (max 10MB for ImageKit free tier, adjust as needed)
+        file_size_mb = len(file_content) / (1024 * 1024)
+        if file_size_mb > 10:
+            print(f"Warning: File size ({file_size_mb:.2f}MB) exceeds 10MB limit")
+        
         # Generate unique filename
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         original_filename = secure_filename(file_file.filename)
@@ -237,6 +257,7 @@ def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_loca
         # Try ImageKit upload
         if imagekit:
             try:
+                print(f"Attempting to upload {unique_filename} ({file_size_mb:.2f}MB) to ImageKit...")
                 upload_response = imagekit.upload_file(
                     file=file_content,
                     file_name=unique_filename,
@@ -248,25 +269,44 @@ def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_loca
 
                 # Return the URL - response format may vary
                 if upload_response:
+                    file_url = None
+                    
                     if isinstance(upload_response, dict):
+                        # Try different response formats
                         if 'url' in upload_response:
-                            print(f"ImageKit file upload successful: {upload_response['url']}")
-                            return upload_response['url']
+                            file_url = upload_response['url']
                         elif 'response_metadata' in upload_response and isinstance(upload_response['response_metadata'], dict) and 'url' in upload_response['response_metadata']:
-                            return upload_response['response_metadata']['url']
+                            file_url = upload_response['response_metadata']['url']
                         elif 'response' in upload_response and isinstance(upload_response['response'], dict) and 'url' in upload_response['response']:
-                            return upload_response['response']['url']
+                            file_url = upload_response['response']['url']
                         elif 'data' in upload_response and isinstance(upload_response['data'], dict) and 'url' in upload_response['data']:
-                            return upload_response['data']['url']
+                            file_url = upload_response['data']['url']
+                        else:
+                            # Log the actual response structure for debugging
+                            print(f"ImageKit response structure: {list(upload_response.keys())}")
+                            print(f"Full response: {str(upload_response)[:500]}")
                     elif hasattr(upload_response, 'url'):
-                        print(f"ImageKit file upload successful: {upload_response.url}")
-                        return upload_response.url
+                        file_url = upload_response.url
+                    
+                    if file_url:
+                        print(f"✓ ImageKit file upload successful: {file_url}")
+                        return file_url
+                    else:
+                        print(f"⚠ ImageKit upload response received but no URL found. Response: {str(upload_response)[:200]}")
+                else:
+                    print("⚠ ImageKit upload returned None/empty response")
+                    
             except Exception as e:
-                print(f"ImageKit upload error: {e}")
+                print(f"✗ ImageKit upload error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("⚠ ImageKit not initialized - check IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, and IMAGEKIT_URL_ENDPOINT environment variables")
 
-        # Fallback to local storage
+        # Fallback to local storage (NOT recommended for Vercel)
         if fallback_to_local:
             try:
+                print(f"Attempting local file save as fallback...")
                 local_folder = f"materials/{folder_name}"
                 upload_folder = os.path.join(app_dir, 'static', 'files', local_folder)
                 os.makedirs(upload_folder, exist_ok=True)
@@ -275,14 +315,17 @@ def upload_file_to_imagekit(file_file, folder_name='materials', fallback_to_loca
                 file_file.save(filepath)
 
                 local_url = url_for('static', filename=f'files/{local_folder}/{unique_filename}')
-                print(f"File saved locally: {local_url}")
+                print(f"✓ File saved locally: {local_url}")
+                print("⚠ WARNING: Local file storage will not persist on Vercel (ephemeral filesystem)")
                 return local_url
             except Exception as e:
-                print(f"Local file save also failed: {e}")
+                print(f"✗ Local file save also failed: {e}")
+                import traceback
+                traceback.print_exc()
 
         return None
     except Exception as e:
-        print(f"Error in upload_file_to_imagekit: {e}")
+        print(f"✗ Error in upload_file_to_imagekit: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -4929,44 +4972,67 @@ def admin_materials():
 def admin_upload_material():
     """Admin - Upload new educational material"""
     if not db_connected:
-        flash('Database not available. Please try again later.', 'danger')
+        flash('Database not available. Please try again later.', 'danger')      
         return redirect(url_for('admin_materials'))
-    
+
     if request.method == 'POST':
         try:
             title = request.form.get('title', '').strip()
             description = request.form.get('description', '').strip()
             file = request.files.get('file')
-            
+
             if not title:
                 flash('Title is required.', 'danger')
-                return render_template('admin_upload_material.html')
-            
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+
             if not file or not file.filename:
                 flash('Please select a file to upload.', 'danger')
-                return render_template('admin_upload_material.html')
-            
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+
             # Validate file type
-            allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}
+            allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}                  
             filename = secure_filename(file.filename)
-            file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-            
+            file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''                                                                      
+
             if file_extension not in allowed_extensions:
-                flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(allowed_extensions)}', 'danger')
-                return render_template('admin_upload_material.html')
-            
-            # Get file size
+                flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(sorted(allowed_extensions))}', 'danger')                                  
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+
+            # Get file size and validate
             file.seek(0, os.SEEK_END)
             file_size = file.tell()
             file.seek(0)
             
-                        # Upload file to ImageKit or local storage
-            file_url = upload_file_to_imagekit(file, folder_name='materials')
+            # Check file size (max 10MB - adjust as needed)
+            max_size_mb = 10
+            max_size_bytes = max_size_mb * 1024 * 1024
+            file_size_mb = file_size / (1024 * 1024)
+            
+            if file_size > max_size_bytes:
+                flash(f'File size ({file_size_mb:.2f}MB) exceeds the maximum allowed size of {max_size_mb}MB. Please compress or split the file.', 'danger')
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+            
+            if file_size == 0:
+                flash('The selected file is empty. Please select a valid file.', 'danger')
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+
+            # Check if ImageKit is configured
+            if not imagekit:
+                flash('File upload service is not configured. Please contact the system administrator to configure ImageKit credentials (IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT).', 'danger')
+                return render_template('admin_upload_material.html', imagekit=imagekit)
+
+            # Upload file to ImageKit
+            file_url = upload_file_to_imagekit(file, folder_name='materials', fallback_to_local=False)   
 
             if not file_url:
-                flash('Failed to upload file. Please try again.', 'danger')
+                error_msg = 'Failed to upload file to cloud storage. '
+                if not imagekit:
+                    error_msg += 'ImageKit is not configured. Please check environment variables.'
+                else:
+                    error_msg += 'Possible reasons: Network error, file size too large, or ImageKit service issue. Please try again or contact support.'
+                flash(error_msg, 'danger')
                 return render_template('admin_upload_material.html')
-            
+
             # Create educational material record
             material = EducationalMaterial(
                 title=title,
@@ -4978,20 +5044,22 @@ def admin_upload_material():
                 uploaded_by=current_user.id,
                 is_active=True
             )
-            
+
             db.session.add(material)
             db.session.commit()
-            
-            flash('Educational material uploaded successfully!', 'success')
+
+            flash(f'Educational material "{title}" uploaded successfully! File size: {file_size_mb:.2f}MB', 'success')     
             return redirect(url_for('admin_materials'))
-            
+
         except Exception as e:
             print(f"Error uploading material: {e}")
+            import traceback
+            traceback.print_exc()
             db.session.rollback()
-            flash('An error occurred while uploading the material. Please try again.', 'danger')
-            return render_template('admin_upload_material.html')
-    
-    return render_template('admin_upload_material.html')
+            flash(f'An error occurred while uploading the material: {str(e)}. Please try again or contact support.', 'danger')                                                                
+            return render_template('admin_upload_material.html', imagekit=imagekit)
+
+    return render_template('admin_upload_material.html', imagekit=imagekit)
 
 @app.route('/admin/materials/<int:material_id>/toggle', methods=['POST'])
 @admin_required
