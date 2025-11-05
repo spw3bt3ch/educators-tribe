@@ -5132,12 +5132,12 @@ def admin_upload_material():
                 if not google_drive_link:
                     flash('Please provide a Google Drive link.', 'danger')
                     return render_template('admin_upload_material.html', imagekit=imagekit)
-                # Validate Google Drive link format
-                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:
-                    flash('Please provide a valid Google Drive link (must contain drive.google.com or docs.google.com).', 'danger')
+                                # Validate Google Drive link format
+                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:                                                  
+                    flash('Please provide a valid Google Drive link (must contain drive.google.com or docs.google.com).', 'danger')                             
                     return render_template('admin_upload_material.html', imagekit=imagekit)
 
-                        file_url = None
+            file_url = None
             filename = None
             file_extension = None
             file_size = None
@@ -5225,7 +5225,7 @@ def admin_upload_material():
                 is_active=True
             )
 
-                        db.session.add(material)
+            db.session.add(material)
             db.session.commit()
 
             if upload_type == 'file':
