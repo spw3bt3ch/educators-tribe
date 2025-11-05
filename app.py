@@ -495,9 +495,11 @@ class EducationalMaterial(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    file_url = db.Column(db.String(1000), nullable=False)
-    file_name = db.Column(db.String(500), nullable=False)
-    file_type = db.Column(db.String(100), nullable=False)  # e.g., 'pdf', 'docx', 'jpg', 'png', 'csv'
+    file_url = db.Column(db.String(1000), nullable=True)  # Optional if google_drive_link is provided
+    google_drive_link = db.Column(db.String(1000), nullable=True)  # Alternative to file_url
+    featured_image_url = db.Column(db.String(1000), nullable=True)  # Optional featured image
+    file_name = db.Column(db.String(500), nullable=True)  # Optional if google_drive_link is provided
+    file_type = db.Column(db.String(100), nullable=True)  # Optional if google_drive_link is provided
     file_size = db.Column(db.Integer, nullable=True)  # Size in bytes
     uploaded_by = db.Column(db.Integer, db.ForeignKey('admins.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -1882,12 +1884,18 @@ def download_material(material_id):
             flash('This material is no longer available.', 'danger')
             return redirect(url_for('materials'))
         
-        # Increment download count
+                # Increment download count
         material.download_count += 1
         db.session.commit()
-        
-        # Redirect to the file URL (which can be ImageKit URL or local file)
-        return redirect(material.file_url)
+
+        # Redirect to the file URL or Google Drive link
+        if material.google_drive_link:
+            return redirect(material.google_drive_link)
+        elif material.file_url:
+            return redirect(material.file_url)
+        else:
+            flash('Material link is not available.', 'danger')
+            return redirect(url_for('materials'))
     except Exception as e:
         print(f"Error downloading material: {e}")
         flash('Error downloading material. Please try again.', 'danger')
@@ -5035,64 +5043,109 @@ def admin_upload_material():
             title = request.form.get('title', '').strip()
             description = request.form.get('description', '').strip()
             file = request.files.get('file')
+            google_drive_link = request.form.get('google_drive_link', '').strip()
+            featured_image = request.files.get('featured_image')
+            upload_type = request.form.get('upload_type', 'file')  # 'file' or 'drive'
 
             if not title:
                 flash('Title is required.', 'danger')
                 return render_template('admin_upload_material.html', imagekit=imagekit)
 
-            if not file or not file.filename:
-                flash('Please select a file to upload.', 'danger')
-                return render_template('admin_upload_material.html', imagekit=imagekit)
+            # Validate that either file or Google Drive link is provided
+            if upload_type == 'file':
+                if not file or not file.filename:
+                    flash('Please select a file to upload.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+            else:
+                if not google_drive_link:
+                    flash('Please provide a Google Drive link.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+                # Validate Google Drive link format
+                if 'drive.google.com' not in google_drive_link and 'docs.google.com' not in google_drive_link:
+                    flash('Please provide a valid Google Drive link (must contain drive.google.com or docs.google.com).', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
 
-            # Validate file type
-            allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}                  
-            filename = secure_filename(file.filename)
-            file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''                                                                      
+                        file_url = None
+            filename = None
+            file_extension = None
+            file_size = None
+            featured_image_url = None
 
-            if file_extension not in allowed_extensions:
-                flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(sorted(allowed_extensions))}', 'danger')                                  
-                return render_template('admin_upload_material.html', imagekit=imagekit)
+            # Handle file upload
+            if upload_type == 'file':
+                # Validate file type
+                allowed_extensions = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'xlsx', 'xls', 'ppt', 'pptx', 'txt', 'zip', 'rar'}
+                filename = secure_filename(file.filename)
+                file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
 
-            # Get file size and validate
-            file.seek(0, os.SEEK_END)
-            file_size = file.tell()
-            file.seek(0)
-            
-            # Check file size (max 10MB - adjust as needed)
-            max_size_mb = 10
-            max_size_bytes = max_size_mb * 1024 * 1024
-            file_size_mb = file_size / (1024 * 1024)
-            
-            if file_size > max_size_bytes:
-                flash(f'File size ({file_size_mb:.2f}MB) exceeds the maximum allowed size of {max_size_mb}MB. Please compress or split the file.', 'danger')
-                return render_template('admin_upload_material.html', imagekit=imagekit)
-            
-            if file_size == 0:
-                flash('The selected file is empty. Please select a valid file.', 'danger')
-                return render_template('admin_upload_material.html', imagekit=imagekit)
+                if file_extension not in allowed_extensions:
+                    flash(f'File type .{file_extension} is not allowed. Allowed types: {", ".join(sorted(allowed_extensions))}', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
 
-            # Check if ImageKit is configured
-            if not imagekit:
-                flash('File upload service is not configured. Please contact the system administrator to configure ImageKit credentials (IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT).', 'danger')
-                return render_template('admin_upload_material.html', imagekit=imagekit)
+                # Get file size and validate
+                file.seek(0, os.SEEK_END)
+                file_size = file.tell()
+                file.seek(0)
 
-            # Upload file to ImageKit
-            file_url = upload_file_to_imagekit(file, folder_name='materials', fallback_to_local=False)   
+                # Check file size (max 10MB - adjust as needed)
+                max_size_mb = 10
+                max_size_bytes = max_size_mb * 1024 * 1024
+                file_size_mb = file_size / (1024 * 1024)
 
-            if not file_url:
-                error_msg = 'Failed to upload file to cloud storage. '
+                if file_size > max_size_bytes:
+                    flash(f'File size ({file_size_mb:.2f}MB) exceeds the maximum allowed size of {max_size_mb}MB. Please compress or split the file.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+                if file_size == 0:
+                    flash('The selected file is empty. Please select a valid file.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+                # Check if ImageKit is configured
                 if not imagekit:
-                    error_msg += 'ImageKit is not configured. Please check environment variables.'
-                else:
-                    error_msg += 'Possible reasons: Network error, file size too large, or ImageKit service issue. Please try again or contact support.'
-                flash(error_msg, 'danger')
-                return render_template('admin_upload_material.html')
+                    flash('File upload service is not configured. Please contact the system administrator to configure ImageKit credentials (IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_URL_ENDPOINT).', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+                # Upload file to ImageKit
+                file_url = upload_file_to_imagekit(file, folder_name='materials', fallback_to_local=False)
+
+                if not file_url:
+                    error_msg = 'Failed to upload file to cloud storage. '
+                    if not imagekit:
+                        error_msg += 'ImageKit is not configured. Please check environment variables.'
+                    else:
+                        error_msg += 'Possible reasons: Network error, file size too large, or ImageKit service issue. Please try again or contact support.'
+                    flash(error_msg, 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+            # Handle featured image upload (optional)
+            if featured_image and featured_image.filename:
+                # Validate featured image type
+                allowed_image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+                image_filename = secure_filename(featured_image.filename)
+                image_extension = image_filename.rsplit('.', 1)[1].lower() if '.' in image_filename else ''
+
+                if image_extension not in allowed_image_extensions:
+                    flash(f'Featured image type .{image_extension} is not allowed. Allowed types: {", ".join(sorted(allowed_image_extensions))}', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+                # Check if ImageKit is configured
+                if not imagekit:
+                    flash('ImageKit is not configured. Featured image cannot be uploaded.', 'danger')
+                    return render_template('admin_upload_material.html', imagekit=imagekit)
+
+                # Upload featured image to ImageKit
+                featured_image_url = upload_image_to_imagekit(featured_image, folder_name='materials/featured', fallback_to_local=False)
+
+                if not featured_image_url:
+                    flash('Failed to upload featured image. The material will be saved without featured image.', 'warning')
 
             # Create educational material record
             material = EducationalMaterial(
                 title=title,
                 description=description,
                 file_url=file_url,
+                google_drive_link=google_drive_link if upload_type == 'drive' else None,
+                featured_image_url=featured_image_url,
                 file_name=filename,
                 file_type=file_extension,
                 file_size=file_size,
@@ -5100,10 +5153,14 @@ def admin_upload_material():
                 is_active=True
             )
 
-            db.session.add(material)
+                        db.session.add(material)
             db.session.commit()
 
-            flash(f'Educational material "{title}" uploaded successfully! File size: {file_size_mb:.2f}MB', 'success')     
+            if upload_type == 'file':
+                file_size_mb = file_size / (1024 * 1024) if file_size else 0
+                flash(f'Educational material "{title}" uploaded successfully! File size: {file_size_mb:.2f}MB', 'success')
+            else:
+                flash(f'Educational material "{title}" with Google Drive link added successfully!', 'success')
             return redirect(url_for('admin_materials'))
 
         except Exception as e:
