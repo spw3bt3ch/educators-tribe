@@ -50,12 +50,24 @@
                 </p>
             </div>
 
-            <!-- Info Box -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p class="text-sm text-blue-800">
-                    <strong>ℹ️ Note:</strong> The file will be uploaded to ImageKit (or saved locally if ImageKit is unavailable). 
-                    Maximum file size depends on your ImageKit configuration.
+                        <!-- Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">      
+                <p class="text-sm text-blue-800 font-semibold mb-2">
+                    <strong>ℹ️ Upload Information:</strong>
                 </p>
+                <ul class="text-sm text-blue-700 space-y-1 ml-4 list-disc">
+                    <li>Maximum file size: <strong>10MB</strong></li>
+                    <li>Files are uploaded to <strong>ImageKit</strong> cloud storage</li>
+                    <li>Supported formats: PDF, DOC, DOCX, JPG, PNG, GIF, CSV, XLSX, XLS, PPT, PPTX, TXT, ZIP, RAR</li>
+                    <li>Files are accessible to all registered users via the Materials page</li>
+                </ul>
+                {% if not imagekit %}
+                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                    <p class="text-sm text-yellow-800">
+                        <strong>⚠️ Warning:</strong> ImageKit is not configured. Please set IMAGEKIT_PRIVATE_KEY, IMAGEKIT_PUBLIC_KEY, and IMAGEKIT_URL_ENDPOINT environment variables.
+                    </p>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Buttons -->
