@@ -24,21 +24,38 @@ from imagekitio import ImageKit
 load_dotenv()
 
 # ImageKit SDK initialization
-# Use environment variables if available, otherwise fallback to hardcoded credentials
-IMAGEKIT_PRIVATE_KEY = os.environ.get('IMAGEKIT_PRIVATE_KEY', 'private_XE8zZEDma0ILZDvb4gwdWD2CEWo=')
-IMAGEKIT_PUBLIC_KEY = os.environ.get('IMAGEKIT_PUBLIC_KEY', 'public_FwDoUWOImuHVjq5Jcac/OARqTyY=')
+# Use environment variables if available, otherwise fallback to hardcoded credentials                                                                           
+IMAGEKIT_PRIVATE_KEY = os.environ.get('IMAGEKIT_PRIVATE_KEY', 'private_XE8zZEDma0ILZDvb4gwdWD2CEWo=')                                                           
+IMAGEKIT_PUBLIC_KEY = os.environ.get('IMAGEKIT_PUBLIC_KEY', 'public_FwDoUWOImuHVjq5Jcac/OARqTyY=')                                                              
 IMAGEKIT_URL_ENDPOINT = os.environ.get('IMAGEKIT_URL_ENDPOINT', 'https://ik.imagekit.io/SMI')
+IMAGEKIT_INIT_ERROR = None
 
-try:
-    imagekit = ImageKit(
-        private_key=IMAGEKIT_PRIVATE_KEY,
-        public_key=IMAGEKIT_PUBLIC_KEY,
-        url_endpoint=IMAGEKIT_URL_ENDPOINT
-    )
-    print("✓ ImageKit initialized successfully")
-except Exception as e:
-    print(f"⚠ ImageKit initialization error: {e}")
+# Check if credentials are provided
+has_private_key = bool(IMAGEKIT_PRIVATE_KEY and IMAGEKIT_PRIVATE_KEY.strip())
+has_public_key = bool(IMAGEKIT_PUBLIC_KEY and IMAGEKIT_PUBLIC_KEY.strip())
+has_url_endpoint = bool(IMAGEKIT_URL_ENDPOINT and IMAGEKIT_URL_ENDPOINT.strip())
+
+if has_private_key and has_public_key and has_url_endpoint:
+    try:
+        imagekit = ImageKit(
+            private_key=IMAGEKIT_PRIVATE_KEY,
+            public_key=IMAGEKIT_PUBLIC_KEY,
+            url_endpoint=IMAGEKIT_URL_ENDPOINT
+        )
+        print("✓ ImageKit initialized successfully")
+    except Exception as e:
+        print(f"⚠ ImageKit initialization error: {e}")
+        import traceback
+        traceback.print_exc()
+        imagekit = None
+        IMAGEKIT_INIT_ERROR = str(e)
+else:
+    print("⚠ ImageKit credentials not fully configured:")
+    print(f"  - Private Key: {'✓' if has_private_key else '✗'}")
+    print(f"  - Public Key: {'✓' if has_public_key else '✗'}")
+    print(f"  - URL Endpoint: {'✓' if has_url_endpoint else '✗'}")
     imagekit = None
+    IMAGEKIT_INIT_ERROR = "Missing required credentials"
 
 # Configure Flask with explicit static folder for Vercel deployment
 # Get the directory where app.py is located
@@ -80,8 +97,22 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
 login_manager.session_protection = 'strong'  # Prevent session hijacking
-# Use threading instead of eventlet to avoid SSL compatibility issues with Python 3.12+
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# Detect if running on Vercel (serverless)
+IS_VERCEL = os.environ.get('VERCEL') == '1' or os.environ.get('VERCEL_ENV')
+
+# Socket.IO initialization - disabled on Vercel since it doesn't support persistent connections
+if IS_VERCEL:
+    print("⚠ Running on Vercel - Socket.IO disabled (serverless doesn't support WebSocket connections)")
+    socketio = None
+else:
+    # Use threading instead of eventlet to avoid SSL compatibility issues with Python 3.12+
+    try:
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+        print("✓ Socket.IO initialized successfully")
+    except Exception as e:
+        print(f"⚠ Socket.IO initialization error: {e}")
+        socketio = None
 
 # Jinja2 filter for date formatting
 @app.template_filter('datetime')
@@ -97,10 +128,14 @@ def datetime_filter(value, format='%Y-%m-%d'):
             return value[:10] if len(value) >= 10 else value
     return value
 
-# Context processor to make APP_URL available to all templates
+# Context processor to make APP_URL and imagekit available to all templates
 @app.context_processor
-def inject_app_url():
-    return dict(app_url=APP_URL)
+def inject_global_vars():
+    return dict(
+        app_url=APP_URL,
+        imagekit=imagekit,
+        imagekit_init_error=IMAGEKIT_INIT_ERROR
+    )
 
 # Helper function to upload image to ImageKit with local fallback
 def upload_image_to_imagekit(image_file, folder_name='uploads', fallback_to_local=True):
@@ -3049,15 +3084,16 @@ def send_connection_request(user_id):
         db.session.add(request)
         db.session.commit()
         
-        # Send real-time notification to recipient
-        recipient_room = f"user_{user_id}"
-        socketio.emit('new_connection_request', {
-            'request_id': request.id,
-            'requester_id': current_user.id,
-            'requester_name': current_user.full_name or current_user.username,
-            'requester_username': current_user.username,
-            'requester_picture': current_user.profile_picture or None
-        }, room=recipient_room)
+                # Send real-time notification to recipient
+        if socketio:
+            recipient_room = f"user_{user_id}"
+            socketio.emit('new_connection_request', {
+                'request_id': request.id,
+                'requester_id': current_user.id,
+                'requester_name': current_user.full_name or current_user.username,  
+                'requester_username': current_user.username,
+                'requester_picture': current_user.profile_picture or None
+            }, room=recipient_room)
         
         return jsonify({'success': True, 'message': 'Connection request sent successfully'})
     except Exception as e:
@@ -4554,157 +4590,176 @@ def donation_callback():
 # Store active users for Socket.IO
 active_users = {}
 
-# SocketIO events for real-time features
-@socketio.on('connect')
-def handle_connect():
-    """Handle client connection"""
-    try:
-        # Get user ID from Flask session (Flask-Login stores it here)
-        user_id_str = session.get('_user_id')
-        
-        if user_id_str:
-            # Parse user ID (format: "user_1" or "admin_1")
-            if '_' in user_id_str:
-                prefix, id_str = user_id_str.split('_', 1)
-                if prefix == 'user':
-                    user_id = int(id_str)
-                    user = User.query.get(user_id)
-                    if user and user.is_active:
-                        user_room = f"user_{user_id}"
-                        join_room(user_room)
-                        from flask_socketio import request as socket_request
-                        active_users[socket_request.sid] = user_id
-                        emit('status', {'msg': "Connected to Educators' Tribe"})
-                        return
-        
-        # Not authenticated or not a user
-        disconnect()
-    except Exception as e:
-        print(f"Error in connect handler: {e}")
-        disconnect()
+# Handle Socket.IO requests on Vercel (serverless doesn't support WebSocket)
+@app.route('/socket.io/', defaults={'path': ''}, methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/socket.io/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
+def handle_socketio(path=''):
+    """Handle Socket.IO requests on Vercel - returns appropriate response"""
+    if IS_VERCEL or not socketio:
+        return jsonify({
+            'error': 'Socket.IO is not available in serverless environment',
+            'message': 'Real-time features are disabled on Vercel'
+        }), 200  # Return 200 to prevent client errors
+    # Let Socket.IO handle it normally in non-serverless environments
+    return '', 204
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    """Handle client disconnection"""
-    try:
-        from flask_socketio import request as socket_request
-        if socket_request.sid in active_users:
-            del active_users[socket_request.sid]
-    except:
-        pass
+# SocketIO events for real-time features (only register if socketio is available)
+if socketio:
+    @socketio.on('connect')
+    def handle_connect():
+        """Handle client connection"""
+        try:
+            # Get user ID from Flask session (Flask-Login stores it here)
+            user_id_str = session.get('_user_id')
+            
+            if user_id_str:
+                # Parse user ID (format: "user_1" or "admin_1")
+                if '_' in user_id_str:
+                    prefix, id_str = user_id_str.split('_', 1)
+                    if prefix == 'user':
+                        user_id = int(id_str)
+                        user = User.query.get(user_id)
+                        if user and user.is_active:
+                            user_room = f"user_{user_id}"
+                            join_room(user_room)
+                            from flask_socketio import request as socket_request
+                            active_users[socket_request.sid] = user_id
+                            emit('status', {'msg': "Connected to Educators' Tribe"})
+                            return
+            
+            # Not authenticated or not a user
+            disconnect()
+        except Exception as e:
+            print(f"Error in connect handler: {e}")
+            disconnect()
 
-@socketio.on('join')
-def handle_join(data):
-    """Handle room join"""
-    room = data.get('room', 'general')
-    join_room(room)
-    emit('status', {'msg': f'Joined room: {room}'}, room=room)
+    
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        """Handle client disconnection"""
+        try:
+            from flask_socketio import request as socket_request
+            if socket_request.sid in active_users:
+                del active_users[socket_request.sid]
+        except:
+            pass
 
-@socketio.on('send_message')
-def handle_send_message(data):
-    """Handle sending a chat message"""
-    try:
-        from flask_socketio import request as socket_request
-        sender_id = active_users.get(socket_request.sid)
-        
-        if not sender_id:
-            emit('error', {'msg': 'You must be logged in as a user to send messages'})
-            return
-        
-        sender = User.query.get(sender_id)
-        if not sender or not sender.is_active:
-            emit('error', {'msg': 'User not found'})
-            return
-        
-        recipient_id = data.get('recipient_id')
-        message_text = data.get('message', '').strip()
-        
-        if not recipient_id or not message_text:
-            emit('error', {'msg': 'Recipient ID and message are required'})
-            return
-        
-        # Verify recipient exists and is a user
-        recipient = User.query.get(recipient_id)
-        if not recipient or not recipient.is_active:
-            emit('error', {'msg': 'Recipient not found'})
-            return
-        
-        # Verify users are connected before allowing message
-        if not are_users_connected(sender_id, recipient_id):
-            emit('error', {'msg': 'You must be connected to this user to send messages'})
-            return
-        
-        # Create message
-        chat_message = ChatMessage(
-            sender_id=sender_id,
-            recipient_id=recipient_id,
-            message=message_text
-        )
-        db.session.add(chat_message)
-        db.session.commit()
-        
-        # Prepare message data
-        message_data = chat_message.to_dict()
-        
-        # Send to recipient's room
-        recipient_room = f"user_{recipient_id}"
-        emit('new_message', message_data, room=recipient_room)
-        
-        # Also send confirmation to sender
-        emit('message_sent', message_data)
-        
-    except Exception as e:
-        print(f"Error sending message: {e}")
-        emit('error', {'msg': 'Failed to send message'})
-        db.session.rollback()
+    
+    @socketio.on('join')
+    def handle_join(data):
+        """Handle room join"""
+        room = data.get('room', 'general')
+        join_room(room)
+        emit('status', {'msg': f'Joined room: {room}'}, room=room)
 
-@socketio.on('typing')
-def handle_typing(data):
-    """Handle typing indicator"""
-    try:
-        from flask_socketio import request as socket_request
-        sender_id = active_users.get(socket_request.sid)
-        if not sender_id:
-            return
+    
+    @socketio.on('send_message')
+    def handle_send_message(data):
+        """Handle sending a chat message"""
+        try:
+            from flask_socketio import request as socket_request
+            sender_id = active_users.get(socket_request.sid)
         
-        sender = User.query.get(sender_id)
-        if not sender:
-            return
-        
-        recipient_id = data.get('recipient_id')
-        is_typing = data.get('is_typing', False)
-        
-        if recipient_id:
-            recipient_room = f"user_{recipient_id}"
-            emit('user_typing', {
-                'user_id': sender_id,
-                'username': sender.username,
-                'is_typing': is_typing
-            }, room=recipient_room)
-    except Exception as e:
-        print(f"Error in typing handler: {e}")
-
-@socketio.on('mark_read')
-def handle_mark_read(data):
-    """Mark messages as read"""
-    try:
-        from flask_socketio import request as socket_request
-        recipient_id = active_users.get(socket_request.sid)
-        if not recipient_id:
-            return
-        
-        sender_id = data.get('sender_id')
-        if sender_id:
-            # Mark all unread messages from this sender as read
-            ChatMessage.query.filter_by(
+            if not sender_id:
+                emit('error', {'msg': 'You must be logged in as a user to send messages'})
+                return
+            
+            sender = User.query.get(sender_id)
+            if not sender or not sender.is_active:
+                emit('error', {'msg': 'User not found'})
+                return
+            
+            recipient_id = data.get('recipient_id')
+            message_text = data.get('message', '').strip()
+            
+            if not recipient_id or not message_text:
+                emit('error', {'msg': 'Recipient ID and message are required'})
+                return
+            
+            # Verify recipient exists and is a user
+            recipient = User.query.get(recipient_id)
+            if not recipient or not recipient.is_active:
+                emit('error', {'msg': 'Recipient not found'})
+                return
+            
+            # Verify users are connected before allowing message
+            if not are_users_connected(sender_id, recipient_id):
+                emit('error', {'msg': 'You must be connected to this user to send messages'})
+                return
+            
+            # Create message
+            chat_message = ChatMessage(
                 sender_id=sender_id,
                 recipient_id=recipient_id,
-                is_read=False
-            ).update({'is_read': True})
+                message=message_text
+            )
+            db.session.add(chat_message)
             db.session.commit()
-    except Exception as e:
-        print(f"Error marking messages as read: {e}")
-        db.session.rollback()
+            
+            # Prepare message data
+            message_data = chat_message.to_dict()
+            
+            # Send to recipient's room
+            recipient_room = f"user_{recipient_id}"
+            emit('new_message', message_data, room=recipient_room)
+            
+            # Also send confirmation to sender
+            emit('message_sent', message_data)
+            
+        except Exception as e:
+            print(f"Error sending message: {e}")
+            emit('error', {'msg': 'Failed to send message'})
+            db.session.rollback()
+
+    
+    @socketio.on('typing')
+    def handle_typing(data):
+        """Handle typing indicator"""
+        try:
+            from flask_socketio import request as socket_request
+            sender_id = active_users.get(socket_request.sid)
+            if not sender_id:
+                return
+            
+            sender = User.query.get(sender_id)
+            if not sender:
+                return
+            
+            recipient_id = data.get('recipient_id')
+            is_typing = data.get('is_typing', False)
+            
+            if recipient_id:
+                recipient_room = f"user_{recipient_id}"
+                emit('user_typing', {
+                    'user_id': sender_id,
+                    'username': sender.username,
+                    'is_typing': is_typing
+                }, room=recipient_room)
+        except Exception as e:
+            print(f"Error in typing handler: {e}")
+
+    
+    @socketio.on('mark_read')
+    def handle_mark_read(data):
+        """Mark messages as read"""
+        try:
+            from flask_socketio import request as socket_request
+            recipient_id = active_users.get(socket_request.sid)
+            if not recipient_id:
+                return
+            
+            sender_id = data.get('sender_id')
+            if sender_id:
+                # Mark all unread messages from this sender as read
+                ChatMessage.query.filter_by(
+                    sender_id=sender_id,
+                    recipient_id=recipient_id,
+                    is_read=False
+                ).update({'is_read': True})
+                db.session.commit()
+        except Exception as e:
+            print(f"Error marking messages as read: {e}")
+            db.session.rollback()
 
 # Initialize database and create admin user
 def init_db():
@@ -5116,4 +5171,9 @@ if __name__ == '__main__':
         print("⚠ Application starting without database connection")
         print("⚠ Some features may not work properly until PostgreSQL is connected")
     
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # Only run Socket.IO server in local development (not on Vercel)
+    if socketio:
+        socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    else:
+        # Run regular Flask app if Socket.IO is not available
+        app.run(debug=True, host='0.0.0.0', port=5000)
