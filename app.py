@@ -70,9 +70,10 @@ if not SECRET_KEY:
     print("⚠ WARNING: SECRET_KEY not set in environment. Using a random key (not recommended for production)")
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# PostgreSQL Configuration (Supabase)
-# Uses Supabase free-tier PostgreSQL via DATABASE_URL environment variable
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
+# PostgreSQL Configuration (Render)
+# Use external database URL from environment or default to provided credentials
+DATABASE_URL = os.environ.get('DATABASE_URL', 
+    'postgresql://smied_db_user:TAuBhdkbInY3nz0ejuQslgPFCgiruxpz@dpg-d3ru3eripnbc738jkja0-a.oregon-postgres.render.com/smied_db')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -84,7 +85,7 @@ try:
     with app.app_context():
         db.engine.connect()
         db_connected = True
-        print(f"✓ Connected to Supabase PostgreSQL")
+        print(f"✓ Connected to PostgreSQL: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'database'}")
 except Exception as e:
     print(f"⚠ PostgreSQL connection error: {e}")
     print("⚠ Application will start but database operations may fail.")
